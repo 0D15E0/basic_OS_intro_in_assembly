@@ -1,0 +1,398 @@
+     1                                  %ifndef MACROS_H
+     2                                  	%define STRUCTS_H
+     3                                  	%include "structs.asm"
+     4                              <1> ;estructuras---------------------------------------------------------------------------
+     5                              <1> ;GDT
+     6                              <1> ;defino una estructura con los elementos que describen cada segemento:
+     7                              <1> [SECTION .data]
+     8                              <1> struc   gdtd_t                   ;Definicion de la estructura denominada gdtd_t, la cual contiene los siguientes campos
+     9 00000000 <res 00000002>      <1>        .limite:         resw 1   ;Limite del segmento bits 00-15.
+    10 00000002 <res 00000002>      <1>        .base00_15:      resw 1   ;Direccion base del segmento bits 00-15.
+    11 00000004 <res 00000001>      <1>        .base16_23:	resb 1   ;Direccion base del segmento bits 16-23.
+    12 00000005 <res 00000001>      <1>        .prop:  		resb 1   ;Propiedades.
+    13 00000006 <res 00000001>      <1>        .lim_prop:  	resb 1   ;Limite del segmento 16-19 y propiedades.
+    14 00000007 <res 00000001>      <1>        .base24_31:	resb 1   ;Direccion base del segmento bits 24-31. 
+    15                              <1> endstruc
+    16                              <1> 
+    17                              <1> ;***********************************************************************************************************
+    18                              <1> 
+    19                              <1> ;IDT
+    20                              <1> ;defino una estructura con los elementos que describen cada segemento:
+    21                              <1> struc   idt_t                   ;Definicion de la estructura denominada gdtd_t, la cual contiene los siguientes campos
+    22 00000000 <res 00000002>      <1>        .offset0_15:     resw 1   ;Limite del segmento bits 00-15.
+    23 00000002 <res 00000002>      <1>        .sel_seg:        resw 1   ;Direccion base del segmento bits 00-15.
+    24 00000004 <res 00000002>      <1>        .prop:		resw 1   ;Direccion base del segmento bits 16-23.
+    25 00000006 <res 00000002>      <1>        .offset16_31:	resw 1   ;Direccion base del segmento bits 24-31.
+    26                              <1> endstruc
+    27                              <1> ;***********************************************************************************************************
+    28                              <1> 
+    29                              <1> STRUC	tss_struct      ;TSS-IA32
+    30 00000000 <res 00000004>      <1>   .BL:		resd 1		; Back link.
+    31 00000004 <res 00000004>      <1>   .ESP0:	resd 1		; ESP0
+    32 00000008 <res 00000004>      <1>   .SS0:		resd 1		; SS0
+    33 0000000C <res 00000004>      <1>   .ESP1:	resd 1		; ESP1
+    34 00000010 <res 00000004>      <1>   .SS1:		resd 1		; SS1
+    35 00000014 <res 00000004>      <1>   .ESP2:	resd 1		; ESP2
+    36 00000018 <res 00000004>      <1>   .SS2:		resd 1		; SS2
+    37 0000001C <res 00000004>      <1>   .CR3:		resd 1		; CR3
+    38 00000020 <res 00000004>      <1>   .EIP:		resd 1		; EIP
+    39 00000024 <res 00000004>      <1>   .EFLAGS:	resd 1		; EFLAGS
+    40 00000028 <res 00000004>      <1>   .EAX:		resd 1		; EAX
+    41 0000002C <res 00000004>      <1>   .ECX:		resd 1		; EBX
+    42 00000030 <res 00000004>      <1>   .EDX:		resd 1		; ECX
+    43 00000034 <res 00000004>      <1>   .EBX:		resd 1		; EDX
+    44 00000038 <res 00000004>      <1>   .ESP:		resd 1		; ESP
+    45 0000003C <res 00000004>      <1>   .EBP:		resd 1		; EBP
+    46 00000040 <res 00000004>      <1>   .ESI:		resd 1		; ESI
+    47 00000044 <res 00000004>      <1>   .EDI:		resd 1		; EDI
+    48 00000048 <res 00000004>      <1>   .ES:		resd 1		; ES
+    49 0000004C <res 00000004>      <1>   .CS:		resd 1		; CS
+    50 00000050 <res 00000004>      <1>   .SS:		resd 1		; SS
+    51 00000054 <res 00000004>      <1>   .DS:		resd 1		; DS
+    52 00000058 <res 00000004>      <1>   .FS:		resd 1		; FS
+    53 0000005C <res 00000004>      <1>   .GS:		resd 1		; GS
+    54 00000060 <res 00000004>      <1>   .LDT		resd 1
+    55 00000064 <res 00000004>      <1>   .IO		resd 1		;I/O MAP ADRESS - reserved - T
+    56                              <1> ENDSTRUC
+    57                              <1> __SECT__
+    58                              <1> 
+    59                              <1> [section .text]
+    60                              <1> 
+    61                              <1> ;**************************************Macros*****************************************************************************************************************
+    62                              <1> 
+    63                              <1> ;ini_tss_table  tss_vector(0) , SEL_DATOS  , SEL_CS ,PILA1 , tarea1, eflags , PILA level 00;  sola vez selectores porque son segmentos flat
+    64                              <1> 
+    65                              <1> %define tss_vector(x) _TSS_kernel+104*x ; regresa el componente x de la tabla
+    66                              <1> 
+    67                              <1> %macro ini_tss_table 7
+    68                              <1> 
+    69                              <1> 		mov dword[%1+tss_struct.IO] ,  0xFFFF0000
+    70                              <1> 		mov word[%1+tss_struct.DS]  ,  %2
+    71                              <1> 		mov word[%1+tss_struct.ES]  ,  %2
+    72                              <1> 		mov word[%1+tss_struct.GS]  ,  %2
+    73                              <1> 		mov word[%1+tss_struct.FS]  ,  %2
+    74                              <1> 		mov word[%1+tss_struct.CS]  ,  %3 
+    75                              <1> 		mov dword[%1+tss_struct.ESP],  %4
+    76                              <1> 		
+    77                              <1> 		mov dword[%1+tss_struct.EAX],  0
+    78                              <1> 		mov dword[%1+tss_struct.EBX],  0
+    79                              <1> 		mov dword[%1+tss_struct.ECX],  0
+    80                              <1> 		mov dword[%1+tss_struct.EDX],  0
+    81                              <1> 		mov dword[%1+tss_struct.EFLAGS], %6
+    82                              <1> 
+    83                              <1> 		mov dword[%1+tss_struct.EDI],  0
+    84                              <1> 		mov dword[%1+tss_struct.ESI],  0
+    85                              <1> 
+    86                              <1> 		mov dword[%1+tss_struct.EBP],  %4
+    87                              <1> 		mov word[%1+tss_struct.SS],    %2
+    88                              <1> 		mov dword[%1+tss_struct.EIP],  %5
+    89                              <1> 		push eax
+    90                              <1> 		mov eax, cr3
+    91                              <1> 		mov [%1+tss_struct.CR3],  eax
+    92                              <1> 		pop eax
+    93                              <1> 		mov word[%1+tss_struct.SS2],   %2 ; mi selector de datos de nivel 0
+    94                              <1> 		mov dword[%1+tss_struct.ESP2], %4 ; pila de nivel 0
+    95                              <1> 		
+    96                              <1> 		mov word[%1+tss_struct.SS0],   SEL_DATOS ; mi selector de datos de nivel 0
+    97                              <1> 		mov dword[%1+tss_struct.ESP0], %7 ; pila de nivel 0
+    98                              <1> 
+    99                              <1> %endmacro
+   100                              <1> 
+   101                              <1> 
+   102                              <1> 
+   103                              <1> 
+   104                              <1> 
+   105                              <1> ;***********GDT****************************
+   106                              <1> %define GDT_vector(x) GDT_INI+8*x ; regresa el componente x de la tabla
+   107                              <1> ;Nombre y numero de argumentos:|1= base| |2=limite| |3=8 bits de Propiedades| |4= 4 bits de prop| |5=Entrada en la tabla|
+   108                              <1> %macro gdtdescini 5 
+   109                              <1>    xor ebx, ebx			   ;y se borrar para operar con el mismo
+   110                              <1>  
+   111                              <1>    mov ebx, %1			   ;Se carga EL PRIMER ARGUMENTO (la direccion) en ebx
+   112                              <1>    mov [%5+gdtd_t.base00_15], bx   ;y carga en la instancia indicada por EL QUINTO ARGUMENTO
+   113                              <1>    shr ebx, 16                             
+   114                              <1>    mov [%5+gdtd_t.base16_23], bl
+   115                              <1>    mov [%5+gdtd_t.base24_31], bh
+   116                              <1>  
+   117                              <1>    xor ebx, ebx
+   118                              <1>    mov ebx, %2			   ;Se carga EL SEGUNDO ARGUMENTO EN ebx
+   119                              <1>    mov [%5+gdtd_t.limite],bx	   ;del tamaño 
+   120                              <1>    shr ebx, 16                     ;Se adapta el restante nibble y
+   121                              <1>    mov [%5+gdtd_t.lim_prop],bl	   ;se carga en el descriptor    
+   122                              <1>  
+   123                              <1>    xor bl, bl
+   124                              <1>    mov bl, %3			   ;Se carga el primer byte
+   125                              <1>    mov [%5+gdtd_t.prop],bl	   ;de propiedades EL TERCER ARGUMENTO
+   126                              <1>  
+   127                              <1>    xor bl, bl
+   128                              <1>    mov bl, %4			   ;Se carga el nibble EL CUARTO ARGUMENTO
+   129                              <1>    shl bl, 4			   ;Se desplaza al nibble mas significativo
+   130                              <1>    or [%5+gdtd_t.lim_prop],bl	   ;Se carga en el descriptor
+   131                              <1> 
+   132                              <1> %endmacro
+   133                              <1>    
+   134                              <1>    
+   135                              <1> ;***********************************************************************************************************
+   136                              <1> 
+   137                              <1> 
+   138                              <1> ;**********IDT************************
+   139                              <1> %define IDT_vector(x) IDT_INI+8*x ; regresa el componente x de la tabla
+   140                              <1> 
+   141                              <1> ;Nombre y numero de argumentos:1= offset 2=sel_seg 3=propierdades  4=Entrada en la tabla
+   142                              <1> %macro idt_ini 4 
+   143                              <1>    xor ebx, ebx			   ;y se borrar para operar con el mismo
+   144                              <1>  
+   145                              <1>    mov ebx, %1			   ;Se carga EL PRIMER ARGUMENTO el offset
+   146                              <1>    mov [%4+idt_t.offset0_15], bx   ;y carga en la instancia indicada por EL QUINTO ARGUMENTO
+   147                              <1>    shr ebx, 16                             
+   148                              <1>    mov [%4+idt_t.offset16_31], bx
+   149                              <1>  
+   150                              <1>    xor ebx, ebx
+   151                              <1>    mov ebx, %2			   ;Se carga EL SEGUNDO ARGUMENTO EN ebx
+   152                              <1>    mov [%4+idt_t.sel_seg],bx	   
+   153                              <1>  
+   154                              <1>    xor ebx, ebx
+   155                              <1>    mov ebx, %3
+   156                              <1>    mov [%4+idt_t.prop], bx  	   ;Cargo el word
+   157                              <1> %endmacro
+   158                              <1> ;***********************************************************************************************************
+   159                              <1> 
+   160                              <1> 
+   161                              <1> __SECT__
+   162                                  %endif
+   163                                  
+   164                                  global main , tarea1 , tarea2 , tarea3, PILA3, PILA2, PILA1
+   165                                  extern TSS1, TSS2, TSS3 ; selectores de las puertas de tarea
+   166                                  
+   167                                  
+   168                                  
+   169                                  BITS 32
+   170                                  ;___________________________________________________________________________________________________________________
+   171                                  [section .tarea1_code]
+   172                                  ;tarea de nivel 11
+   173                                  tarea1:    
+   174 00000000 0F2805[00000000]            movaps xmm0, [v1]   ;load v1 into xmm0
+   175 00000007 0F280D[10000000]            movaps xmm1, [v2]   ;load v2 into xmm1
+   176                                  .loop:
+   177                                      
+   178 0000000E 0F58C1                      addps  xmm0, xmm1
+   179 00000011 0F2905[20000000]            movaps [v3], xmm0   ;store v1 in v3
+   180 00000018 EBF4                    jmp .loop
+   181                                  
+   182                                  __SECT__
+   183                                  
+   184                                  [section .data]
+   185                                  align 16
+   186 00000000 CDCC8C3FCDCC0C4033-         v1: dd 1.1, 2.2, 3.3, 4.4    ;first set of 4 numbers
+   187 00000009 335340CDCC8C40     
+   188 00000010 0000B0403333D34066-         v2: dd 5.5, 6.6, 7.7, 8.8    ;second set
+   189 00000019 66F640CDCC0C41     
+   190 00000020 00000000<rept>              v3: times 4 dd 0    ;result
+   191                                  __SECT__
+   192                                  
+   193                                  
+   194                                  
+   195                                  [section .tarea1_stack]
+   196                                  align 4
+   197                                  _INI_PILA1:
+   198 00000000 00000000<rept>          		times 32 dd 0; 
+   199                                  PILA1	equ	$
+   200                                  
+   201                                  __SECT__
+   202                                  
+   203                                  
+   204                                  ;___________________________________________________________________________________________________________________
+   205                                  
+   206                                  
+   207                                  
+   208                                  
+   209                                  
+   210                                  ;tarea de nivel 11
+   211                                  [section .tarea2_code]
+   212                                  tarea2:
+   213                                  ;quitar comentarios para probar el handler 14
+   214                                  ;  mov eax,[0xbff2f887]
+   215                                  ; mov eax,[0xeb6a0a6c]
+   216                                  ;  mov eax,[0x704583ec]
+   217 00000000 B905000000                mov ecx,5
+   218                                  .loop:  
+   219 00000005 B800000000                mov eax, 0
+   220 0000000A BB[30000000]              mov ebx, print
+   221 0000000F CD80                      int 80h
+   222 00000011 E2F2                    loop .loop
+   223 00000013 0F2805[60000000]            movaps xmm0, [v4]   ;load v1 into xmm0
+   224 0000001A 0F280D[70000000]            movaps xmm1, [v5]   ;load v2 into xmm1
+   225                                  
+   226                                     
+   227                                  .loop2:
+   228                                  
+   229 00000021 0F59C1                      mulps xmm0, xmm1
+   230 00000024 0F2905[80000000]            movaps [v6], xmm0
+   231 0000002B EBF4                    jmp .loop2
+   232                                  
+   233                                  
+   234                                  
+   235                                  
+   236                                  __SECT__
+   237                                  
+   238                                  [section .data]
+   239                                  print:
+   240 00000030 746172656120322070-     	db 'tarea 2 print mediante servicio INT80h 5 veces',10
+   241 00000039 72696E74206D656469-
+   242 00000042 616E74652073657276-
+   243 0000004B 6963696F20494E5438-
+   244 00000054 306820352076656365-
+   245 0000005D 730A               
+   246 0000005F 90                      align 16
+   247 00000060 CDCC8C3FCDCC0C4033-         v4: dd 1.1, 2.2, 3.3, 4.4    ;first set of 4 numbers
+   248 00000069 335340CDCC8C40     
+   249 00000070 0000B0403333D34066-         v5: dd 5.5, 6.6, 7.7, 8.8    ;second set
+   250 00000079 66F640CDCC0C41     
+   251 00000080 00000000<rept>              v6: times 4 dd 0    ;result
+   252                                  
+   253                                  __SECT__
+   254                                  
+   255                                  [section .tarea2_stack]
+   256                                  align 4
+   257                                  _INI_PILA2:
+   258 00000000 00000000<rept>          		times 32 dd 0; 
+   259                                  PILA2	equ	$
+   260                                  
+   261                                  __SECT__
+   262                                  
+   263                                  
+   264                                  
+   265                                  ;___________________________________________________________________________________________________________________
+   266                                  
+   267                                  ;tarea de nivel 00
+   268                                  [section .tarea3_code]
+   269                                  tarea3:
+   270                                  
+   271                                  .loop:  
+   272 00000000 E8(03000000)              call _waiting
+   273 00000005 EBF9                    jmp .loop
+   274                                  
+   275                                  __SECT__
+   276                                  
+   277                                  
+   278                                  [section .tarea3_stack]
+   279                                  align 4
+   280                                  _INI_PILA3:
+   281 00000000 00000000<rept>          		times 32 dd 0; 
+   282                                  PILA3	equ	$
+   283                                  
+   284                                  __SECT__
+   285                                  
+   286                                  
+   287                                  
+   288                                  
+   289                                  
+   290                                  ;___________________________________________________________________________________________________________________
+   291                                  [section .resto_del_kernel]
+   292                                  main:
+   293                                  .loop:
+   294 00000000 F4                          hlt
+   295 00000001 EBFD                    jmp .loop
+   296                                  
+   297                                  
+   298                                  
+   299                                  ;TP7 lo que sigue
+   300                                  ;.loop:  
+   301                                  ;  call _waiting
+   302                                    
+   303                                    ;https://www.random.org/cgi-bin/randbyte?nbytes=100&format=h
+   304                                    ;58 4a a5 14 a8 fd c1 92 98 5f 2c 5e e5 57 9f b7 
+   305                                    ;a5 cf 3b e6 4d 4b da 94 18 a1 c9 ff de 7c d3 00 
+   306                                    ;56 5c b5 75 52 15 db 68 50 02 53 8f 66 0e 5a 6e 
+   307                                    ;00 77 ec 0e 0f 9b 5d d3 89 c7 d6 11 91 9e df 1a 
+   308                                    ;b8 c1 5f 3c 5f c3 8f a1 c2 d8 47 bc 00 cf 99 07 
+   309                                    ;99 9a 65 5f 
+   310                                  ;  mov eax,[0xbff2f887]
+   311                                  ;  mov eax,[0xeb6a0a6c]
+   312                                  ;  mov eax,[0x704583ec]
+   313                                  ;  mov eax,[0xd2c2148d]
+   314                                  ;  mov eax,[0x9b5dd389]
+   315                                  ;  mov eax,[0xa1c2d847]
+   316                                  ;  mov eax,[0x77ec0e0f]
+   317                                  ;  mov eax,[0x919edf1a]
+   318                                  ;  mov eax,[0x8fa1c2d8]
+   319                                  ;  mov eax,[0xdb685002]
+   320                                  
+   321                                   
+   322                                  ;jmp .loop
+   323                                  
+   324                                  ;hlt
+   325                                  
+   326                                  
+   327                                  _waiting:
+   328 00000003 9C                      pushfd
+   329 00000004 56                      push esi
+   330 00000005 57                      push edi
+   331 00000006 50                      push eax
+   332                                  
+   333 00000007 A1[9F000000]            mov eax, dword[slow_down]
+   334 0000000C 3DFF100000              cmp eax, 0x10ff
+   335 00000011 7573                    jnz .aun_no
+   336                                  
+   337 00000013 C705[9F000000]0000-     mov dword[slow_down],0
+   338 0000001B 0000               
+   339 0000001D BE[90000000]            mov esi, waiting
+   340 00000022 BF608E0B00              mov edi,0xb8E60
+   341 00000027 B408                    mov ah,8
+   342                                  .print:
+   343 00000029 8A06                      mov al, byte [esi]; cargo el caracter en la parte baja
+   344 0000002B 668907                    mov [edi], ax;guardo en el buffer de pantalla el caracter y su color
+   345 0000002E 46                        inc esi
+   346 0000002F 83C702                    add edi, 2; el word que sigue
+   347 00000032 803E0A                    cmp byte [esi],10; si es igual a null termino
+   348 00000035 75F2                    jne .print
+   349                                  
+   350                                  
+   351 00000037 BF008F0B00              mov edi, 0xb8F00 ; ultima linea
+   352 0000003C 033D[A3000000]          add edi, dword [count]
+   353 00000042 81FF4F8F0B00            cmp edi,0xb8f4f
+   354 00000048 750F                    jnz .go
+   355 0000004A BF008F0B00              mov edi, 0xb8F00 ; ultima linea
+   356 0000004F C705[A3000000]0000-     mov dword[count],0
+   357 00000057 0000               
+   358                                  .go:
+   359 00000059 B408                    mov ah, 8; color
+   360 0000005B A0[A7000000]            mov al, [dot];
+   361 00000060 668907                  mov [edi],ax
+   362 00000063 802D[A3000000]02        sub byte[count],2
+   363 0000006A BF008F0B00              mov edi, 0xb8f00 ; ultima linea
+   364 0000006F 033D[A3000000]          add edi, dword [count]
+   365 00000075 B408                    mov ah, 8; color
+   366 00000077 A0[A8000000]            mov al, [line];
+   367 0000007C 668907                  mov [edi],ax
+   368 0000007F 8005[A3000000]04        add byte[count],4
+   369                                  
+   370                                  .aun_no:
+   371 00000086 83C001                  add eax,1
+   372 00000089 A3[9F000000]            mov [slow_down],eax
+   373 0000008E 58                      pop eax
+   374 0000008F 5F                      pop edi
+   375 00000090 5E                      pop esi
+   376 00000091 9D                      popfd
+   377                                  
+   378 00000092 C3                      ret
+   379                                  
+   380                                  [section .data]
+   381                                  waiting:
+   382 00000090 4E4F57205741495449-     db 'NOW WAITING...',10
+   383 00000099 4E472E2E2E0A       
+   384                                  
+   385                                  slow_down:
+   386 0000009F 00000000                dd 0;
+   387                                  
+   388                                  count:
+   389 000000A3 02000000                dd 2
+   390                                  
+   391                                  dot:
+   392 000000A7 58                      db 'X'
+   393                                  
+   394                                  line:
+   395 000000A8 2D                      db '-'
+   396                                  __SECT__
+   397                                  
+   398                                  

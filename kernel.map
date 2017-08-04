@@ -1,0 +1,163 @@
+
+Configuración de la Memoria
+
+Nombre           Origen             Longitud           Atributos
+*default*        0x0000000000000000 0xffffffffffffffff
+
+Guión del enlazador y mapa de memoria
+
+LOAD init16.elf
+LOAD main.elf
+LOAD sys_tables.elf
+
+.text           0x0000000000008000      0xda0
+                0x0000000000008000                inti_code_rom_start = .
+ *(.text)
+ .text          0x0000000000008000      0xd9e init16.elf
+                0x0000000000008000                _ORIGEN
+ *fill*         0x0000000000008d9e        0x2 
+ .text          0x0000000000008da0        0x0 main.elf
+ .text          0x0000000000008da0        0x0 sys_tables.elf
+                0x0000000000008da0                _etext = .
+
+gdt_idt         0x0000000000008da0      0xa60
+                0x0000000000008da0                _sgdt_idt = .
+ *(.gdt_idt)
+ .gdt_idt       0x0000000000008da0      0xa60 sys_tables.elf
+                0x0000000000008da0                _TSS_kernel
+                0x0000000000008e08                _TSS1
+                0x0000000000008e70                _TSS2
+                0x0000000000008ed8                _TSS3
+                0x0000000000008f40                _TSS1_XMM0
+                0x0000000000008f50                _TSS1_XMM1
+                0x0000000000008f60                _TSS2_XMM0
+                0x0000000000008f70                _TSS2_XMM1
+                0x0000000000008f80                _TSS3_XMM0
+                0x0000000000008f90                _TSS3_XMM1
+                0x0000000000008fa0                GDT_INI
+                0x0000000000008ff0                IDT_INI
+                0x00000000000097f2                GDTR
+                0x00000000000097fa                IDTR
+                0x0000000000009800                _egdt_idt = .
+
+.resto_del_kernel
+                0x0000000000009800      0x90e
+                0x0000000000009800                _sresto_del_kernel = .
+ *(.resto_del_kernel)
+ .resto_del_kernel
+                0x0000000000009800      0x87b init16.elf
+                0x000000000000990c                _handler0
+                0x000000000000992e                _handler1
+                0x0000000000009950                _handler2
+                0x0000000000009972                _handler3
+                0x0000000000009994                _handler4
+                0x00000000000099b6                _handler5
+                0x00000000000099d8                _handler6
+                0x00000000000099fa                _handler7
+                0x0000000000009a43                _handler8
+                0x0000000000009a65                _handler9
+                0x0000000000009a87                _handler10
+                0x0000000000009aa9                _handler11
+                0x0000000000009acb                _handler12
+                0x0000000000009aed                _handler13
+                0x0000000000009b0f                _handler14
+                0x0000000000009bd9                _handler22
+                0x0000000000009bf6                _handler32
+                0x0000000000009c9f                _handler33
+                0x0000000000009e06                _handler34
+                0x0000000000009e28                _handler35
+                0x0000000000009e4a                _handler36
+                0x0000000000009e6c                _handler37
+                0x0000000000009e8e                _handler38
+                0x0000000000009eb0                _handler39
+                0x0000000000009ed2                _handler40
+                0x0000000000009ef4                _handler41
+                0x0000000000009f16                _handler42
+                0x0000000000009f38                _handler43
+                0x0000000000009f5a                _handler44
+                0x0000000000009f7c                _handler45
+                0x0000000000009f9e                _handler46
+                0x0000000000009fc0                _handler47
+ .resto_del_kernel
+                0x000000000000a07b       0x93 main.elf
+                0x000000000000a07b                main
+                0x000000000000a10e                _eresto_del_kernel = .
+
+.pilas_level_00
+                0x000000000000b000     0x4000 dirección de carga 0x000000000000a10e
+                0x000000000000b000                _ssatack = .
+ *(.pilas_level_00)
+ .pilas_level_00
+                0x000000000000b000     0x4000 init16.elf
+                0x000000000000f000                _estack = .
+
+.data           0x000000000000f000      0x33c
+                0x000000000000f000                _sdata = .
+ *(.data)
+ .data          0x000000000000f000      0x28e init16.elf
+ *fill*         0x000000000000f28e        0x2 
+ .data          0x000000000000f290       0xa9 main.elf
+ *fill*         0x000000000000f339        0x3 
+ .data          0x000000000000f33c        0x0 sys_tables.elf
+                0x000000000000f33c                _edata = .
+
+.data_readonly  0x000000000000f33c       0x2c
+                0x000000000000f33c                _sdata_readonly = .
+ *(.data_readonly)
+ .data_readonly
+                0x000000000000f33c       0x2c init16.elf
+                0x000000000000f368                _edata_readonly = .
+
+.tarea3_code    0x000000000000f368        0x7
+                0x000000000000f368                _starea3_code = .
+ *(.tarea3_code)
+ .tarea3_code   0x000000000000f368        0x7 main.elf
+                0x000000000000f368                tarea3
+                0x000000000000f36f                _etarea3_code = .
+
+.tarea2_code    0x000000000000f36f       0x2d
+                0x000000000000f36f                _starea2_code = .
+ *(.tarea2_code)
+ .tarea2_code   0x000000000000f36f       0x2d main.elf
+                0x000000000000f36f                tarea2
+                0x000000000000f39c                _etarea2_code = .
+
+.tarea1_code    0x000000000000f39c       0x1a
+                0x000000000000f39c                _starea1_code = .
+ *(.tarea1_code)
+ .tarea1_code   0x000000000000f39c       0x1a main.elf
+                0x000000000000f39c                tarea1
+                0x000000000000f3b6                _etarea1_code = .
+
+.tarea1_stack   0x000000000000f3b8       0x80 dirección de carga 0x000000000000f3b6
+                0x000000000000f3b8                _starea1_stack = .
+ *(.tarea1_stack)
+ .tarea1_stack  0x000000000000f3b8       0x80 main.elf
+                0x000000000000f438                PILA1
+                0x000000000000f438                _etarea1_stack = .
+
+.tarea2_stack   0x000000000000f438       0x80
+                0x000000000000f438                _starea2_stack = .
+ *(.tarea2_stack)
+ .tarea2_stack  0x000000000000f438       0x80 main.elf
+                0x000000000000f4b8                PILA2
+                0x000000000000f4b8                _etarea2_stack = .
+
+.tarea3_stack   0x000000000000f4b8       0x80
+                0x000000000000f4b8                _starea3_stack = .
+ *(.tarea3_stack)
+ .tarea3_stack  0x000000000000f4b8       0x80 main.elf
+                0x000000000000f538                PILA3
+                0x000000000000f538                _etarea3_stack = .
+                0x0000000000100000                . = 0x100000
+
+.tablas         0x0000000000100000     0x3000 dirección de carga 0x000000000000f538
+                0x0000000000100000                _stablas = .
+ *(.tablas)
+ .tablas        0x0000000000100000     0x3000 sys_tables.elf
+                0x0000000000100000                _PAGE_DIRECTORY
+                0x0000000000101000                _PAGE_TABLE
+                0x0000000000102000                _PAGE_TABLE_PF
+                0x0000000000103000                _etablas = .
+                0x0000000000103000                _end = _etablas
+OUTPUT(kernel.bin binary)

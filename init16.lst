@@ -1,0 +1,2625 @@
+     1                                  %ifndef MACROS_H
+     2                                  	%define STRUCTS_H
+     3                                  	%include "structs.asm"
+     4                              <1> ;estructuras---------------------------------------------------------------------------
+     5                              <1> ;GDT
+     6                              <1> ;defino una estructura con los elementos que describen cada segemento:
+     7                              <1> [SECTION .data]
+     8                              <1> struc   gdtd_t                   ;Definicion de la estructura denominada gdtd_t, la cual contiene los siguientes campos
+     9 00000000 <res 00000002>      <1>        .limite:         resw 1   ;Limite del segmento bits 00-15.
+    10 00000002 <res 00000002>      <1>        .base00_15:      resw 1   ;Direccion base del segmento bits 00-15.
+    11 00000004 <res 00000001>      <1>        .base16_23:	resb 1   ;Direccion base del segmento bits 16-23.
+    12 00000005 <res 00000001>      <1>        .prop:  		resb 1   ;Propiedades.
+    13 00000006 <res 00000001>      <1>        .lim_prop:  	resb 1   ;Limite del segmento 16-19 y propiedades.
+    14 00000007 <res 00000001>      <1>        .base24_31:	resb 1   ;Direccion base del segmento bits 24-31. 
+    15                              <1> endstruc
+    16                              <1> 
+    17                              <1> ;***********************************************************************************************************
+    18                              <1> 
+    19                              <1> ;IDT
+    20                              <1> ;defino una estructura con los elementos que describen cada segemento:
+    21                              <1> struc   idt_t                   ;Definicion de la estructura denominada gdtd_t, la cual contiene los siguientes campos
+    22 00000000 <res 00000002>      <1>        .offset0_15:     resw 1   ;Limite del segmento bits 00-15.
+    23 00000002 <res 00000002>      <1>        .sel_seg:        resw 1   ;Direccion base del segmento bits 00-15.
+    24 00000004 <res 00000002>      <1>        .prop:		resw 1   ;Direccion base del segmento bits 16-23.
+    25 00000006 <res 00000002>      <1>        .offset16_31:	resw 1   ;Direccion base del segmento bits 24-31.
+    26                              <1> endstruc
+    27                              <1> ;***********************************************************************************************************
+    28                              <1> 
+    29                              <1> STRUC	tss_struct      ;TSS-IA32
+    30 00000000 <res 00000004>      <1>   .BL:		resd 1		; Back link.
+    31 00000004 <res 00000004>      <1>   .ESP0:	resd 1		; ESP0
+    32 00000008 <res 00000004>      <1>   .SS0:		resd 1		; SS0
+    33 0000000C <res 00000004>      <1>   .ESP1:	resd 1		; ESP1
+    34 00000010 <res 00000004>      <1>   .SS1:		resd 1		; SS1
+    35 00000014 <res 00000004>      <1>   .ESP2:	resd 1		; ESP2
+    36 00000018 <res 00000004>      <1>   .SS2:		resd 1		; SS2
+    37 0000001C <res 00000004>      <1>   .CR3:		resd 1		; CR3
+    38 00000020 <res 00000004>      <1>   .EIP:		resd 1		; EIP
+    39 00000024 <res 00000004>      <1>   .EFLAGS:	resd 1		; EFLAGS
+    40 00000028 <res 00000004>      <1>   .EAX:		resd 1		; EAX
+    41 0000002C <res 00000004>      <1>   .ECX:		resd 1		; EBX
+    42 00000030 <res 00000004>      <1>   .EDX:		resd 1		; ECX
+    43 00000034 <res 00000004>      <1>   .EBX:		resd 1		; EDX
+    44 00000038 <res 00000004>      <1>   .ESP:		resd 1		; ESP
+    45 0000003C <res 00000004>      <1>   .EBP:		resd 1		; EBP
+    46 00000040 <res 00000004>      <1>   .ESI:		resd 1		; ESI
+    47 00000044 <res 00000004>      <1>   .EDI:		resd 1		; EDI
+    48 00000048 <res 00000004>      <1>   .ES:		resd 1		; ES
+    49 0000004C <res 00000004>      <1>   .CS:		resd 1		; CS
+    50 00000050 <res 00000004>      <1>   .SS:		resd 1		; SS
+    51 00000054 <res 00000004>      <1>   .DS:		resd 1		; DS
+    52 00000058 <res 00000004>      <1>   .FS:		resd 1		; FS
+    53 0000005C <res 00000004>      <1>   .GS:		resd 1		; GS
+    54 00000060 <res 00000004>      <1>   .LDT		resd 1
+    55 00000064 <res 00000004>      <1>   .IO		resd 1		;I/O MAP ADRESS - reserved - T
+    56                              <1> ENDSTRUC
+    57                              <1> __SECT__
+    58                              <1> 
+    59                              <1> [section .text]
+    60                              <1> 
+    61                              <1> ;**************************************Macros*****************************************************************************************************************
+    62                              <1> 
+    63                              <1> ;ini_tss_table  tss_vector(0) , SEL_DATOS  , SEL_CS ,PILA1 , tarea1, eflags , PILA level 00;  sola vez selectores porque son segmentos flat
+    64                              <1> 
+    65                              <1> %define tss_vector(x) _TSS_kernel+104*x ; regresa el componente x de la tabla
+    66                              <1> 
+    67                              <1> %macro ini_tss_table 7
+    68                              <1> 
+    69                              <1> 		mov dword[%1+tss_struct.IO] ,  0xFFFF0000
+    70                              <1> 		mov word[%1+tss_struct.DS]  ,  %2
+    71                              <1> 		mov word[%1+tss_struct.ES]  ,  %2
+    72                              <1> 		mov word[%1+tss_struct.GS]  ,  %2
+    73                              <1> 		mov word[%1+tss_struct.FS]  ,  %2
+    74                              <1> 		mov word[%1+tss_struct.CS]  ,  %3 
+    75                              <1> 		mov dword[%1+tss_struct.ESP],  %4
+    76                              <1> 		
+    77                              <1> 		mov dword[%1+tss_struct.EAX],  0
+    78                              <1> 		mov dword[%1+tss_struct.EBX],  0
+    79                              <1> 		mov dword[%1+tss_struct.ECX],  0
+    80                              <1> 		mov dword[%1+tss_struct.EDX],  0
+    81                              <1> 		mov dword[%1+tss_struct.EFLAGS], %6
+    82                              <1> 
+    83                              <1> 		mov dword[%1+tss_struct.EDI],  0
+    84                              <1> 		mov dword[%1+tss_struct.ESI],  0
+    85                              <1> 
+    86                              <1> 		mov dword[%1+tss_struct.EBP],  %4
+    87                              <1> 		mov word[%1+tss_struct.SS],    %2
+    88                              <1> 		mov dword[%1+tss_struct.EIP],  %5
+    89                              <1> 		push eax
+    90                              <1> 		mov eax, cr3
+    91                              <1> 		mov [%1+tss_struct.CR3],  eax
+    92                              <1> 		pop eax
+    93                              <1> 		mov word[%1+tss_struct.SS2],   %2 ; mi selector de datos de nivel 0
+    94                              <1> 		mov dword[%1+tss_struct.ESP2], %4 ; pila de nivel 0
+    95                              <1> 		
+    96                              <1> 		mov word[%1+tss_struct.SS0],   SEL_DATOS ; mi selector de datos de nivel 0
+    97                              <1> 		mov dword[%1+tss_struct.ESP0], %7 ; pila de nivel 0
+    98                              <1> 
+    99                              <1> %endmacro
+   100                              <1> 
+   101                              <1> 
+   102                              <1> 
+   103                              <1> 
+   104                              <1> 
+   105                              <1> ;***********GDT****************************
+   106                              <1> %define GDT_vector(x) GDT_INI+8*x ; regresa el componente x de la tabla
+   107                              <1> ;Nombre y numero de argumentos:|1= base| |2=limite| |3=8 bits de Propiedades| |4= 4 bits de prop| |5=Entrada en la tabla|
+   108                              <1> %macro gdtdescini 5 
+   109                              <1>    xor ebx, ebx			   ;y se borrar para operar con el mismo
+   110                              <1>  
+   111                              <1>    mov ebx, %1			   ;Se carga EL PRIMER ARGUMENTO (la direccion) en ebx
+   112                              <1>    mov [%5+gdtd_t.base00_15], bx   ;y carga en la instancia indicada por EL QUINTO ARGUMENTO
+   113                              <1>    shr ebx, 16                             
+   114                              <1>    mov [%5+gdtd_t.base16_23], bl
+   115                              <1>    mov [%5+gdtd_t.base24_31], bh
+   116                              <1>  
+   117                              <1>    xor ebx, ebx
+   118                              <1>    mov ebx, %2			   ;Se carga EL SEGUNDO ARGUMENTO EN ebx
+   119                              <1>    mov [%5+gdtd_t.limite],bx	   ;del tamaño 
+   120                              <1>    shr ebx, 16                     ;Se adapta el restante nibble y
+   121                              <1>    mov [%5+gdtd_t.lim_prop],bl	   ;se carga en el descriptor    
+   122                              <1>  
+   123                              <1>    xor bl, bl
+   124                              <1>    mov bl, %3			   ;Se carga el primer byte
+   125                              <1>    mov [%5+gdtd_t.prop],bl	   ;de propiedades EL TERCER ARGUMENTO
+   126                              <1>  
+   127                              <1>    xor bl, bl
+   128                              <1>    mov bl, %4			   ;Se carga el nibble EL CUARTO ARGUMENTO
+   129                              <1>    shl bl, 4			   ;Se desplaza al nibble mas significativo
+   130                              <1>    or [%5+gdtd_t.lim_prop],bl	   ;Se carga en el descriptor
+   131                              <1> 
+   132                              <1> %endmacro
+   133                              <1>    
+   134                              <1>    
+   135                              <1> ;***********************************************************************************************************
+   136                              <1> 
+   137                              <1> 
+   138                              <1> ;**********IDT************************
+   139                              <1> %define IDT_vector(x) IDT_INI+8*x ; regresa el componente x de la tabla
+   140                              <1> 
+   141                              <1> ;Nombre y numero de argumentos:1= offset 2=sel_seg 3=propierdades  4=Entrada en la tabla
+   142                              <1> %macro idt_ini 4 
+   143                              <1>    xor ebx, ebx			   ;y se borrar para operar con el mismo
+   144                              <1>  
+   145                              <1>    mov ebx, %1			   ;Se carga EL PRIMER ARGUMENTO el offset
+   146                              <1>    mov [%4+idt_t.offset0_15], bx   ;y carga en la instancia indicada por EL QUINTO ARGUMENTO
+   147                              <1>    shr ebx, 16                             
+   148                              <1>    mov [%4+idt_t.offset16_31], bx
+   149                              <1>  
+   150                              <1>    xor ebx, ebx
+   151                              <1>    mov ebx, %2			   ;Se carga EL SEGUNDO ARGUMENTO EN ebx
+   152                              <1>    mov [%4+idt_t.sel_seg],bx	   
+   153                              <1>  
+   154                              <1>    xor ebx, ebx
+   155                              <1>    mov ebx, %3
+   156                              <1>    mov [%4+idt_t.prop], bx  	   ;Cargo el word
+   157                              <1> %endmacro
+   158                              <1> ;***********************************************************************************************************
+   159                              <1> 
+   160                              <1> 
+   161                              <1> __SECT__
+   162                                  %endif
+   163                                  [section .text]
+   164                                  ;para ver el mapa de memoria
+   165                                  global _handler0,_handler1,_handler2,_handler3,_handler4,_handler5,_handler6,_handler7,_handler8,_handler9,_handler10,_handler11,_handler12,_handler13,_handler_14,_handler46,_handler33
+   166                                  global _handler14, _handler22,_handler32,_handler34,_handler35,_handler36,_handler37,_handler38,_handler39,_handler40,_handler41,_handler42,_handler43,_handler44,_handler45,_handler47 
+   167                                  
+   168                                  
+   169                                  EXTERN _PAGE_DIRECTORY, _PAGE_TABLE , GDT_INI ,SEL_CS ,SEL_DATOS ,SEL_CS_USER ,SEL_DATOS_USER ,IDT_INI ,GDTR ,IDTR , _PAGE_TABLE_PF
+   170                                  EXTERN _TSS1, _TSS2, _TSS3 , _TSS_kernel , TSS_kernel_index, TSS1, TSS2, TSS3
+   171                                  EXTERN main , tarea1 , tarea2 , tarea3, PILA3, PILA2, PILA1
+   172                                  EXTERN _TSS1_XMM0, _TSS1_XMM1, _TSS2_XMM0, _TSS2_XMM1, _TSS3_XMM0, _TSS3_XMM1
+   173                                  
+   174                                  GLOBAL _ORIGEN
+   175                                  
+   176                                  _ORIGEN:
+   177                                  
+   178 00000000 EB00                    		jmp 		_START
+   179                                  
+   180                                  __SECT__
+   181                                  [section .data_readonly]
+   182                                  ;STARTING_S	db		"S<-caracter incremental...",10 ; TP7
+   183 00000000 5374617274696E672E-     STARTING_S	db		"Starting...",10
+   184 00000009 2E2E0A             
+   185                                  
+   186                                  MEM_VIDEO 	equ 		0xb8000
+   187                                  CANT_COLUMNAS 	equ 		25
+   188                                  CANT_FILAS 	equ 		80
+   189                                  PAGE_SIZE	EQU	0x1000	;4KB por pagina 
+   190                                  PCD		EQU	10000b
+   191                                  PWT		EQU	1000b
+   192                                  PT_PS		EQU	10000000b	;Sumar si quiero que sean páginas de 4M en lugar de 4K 
+   193                                  PT_A		EQU	100000b	;Sumar si quiero que esté como ACCEDIDO
+   194                                  PT_RW		EQU	10b	;Sumar si quiero que sea WRITEABLE además de READABLE
+   195                                  PT_P		EQU	1b	;Sumar si quiero que esté físicamente presente.
+   196                                  PT_U		EQU	100b;	; atributo de usuario
+   197                                  CR4_PSE		EQU	10000b	;Sumar si quiero habilitar PSE
+   198                                  PG_CR0		EQU	0x80000000	;El bit para activar paginación es el 31 del PR0.
+   199                                  __SECT__
+   200                                  
+   201                                  
+   202                                  [section .text]
+   203                                  BITS 16
+   204                                  _START:
+   205                                  
+   206                                  ;___________________________________________________A20 16 bit code_________________________________________________________________________________________
+   207                                  
+   208 00000002 E8490D                  		call A20_Enable
+   209                                  
+   210                                  		
+   211                                  ;___________________________________________________cargo el lugar reservado de la GDT_________________________________________________________________________________________
+   212                                  ;Nombre y numero de argumentos:|1= base| |2=limite| |3=8 bits de Propiedades | |4= 4 bits de prop| |5=Entrada en la tabla|
+   213                                  
+   214                                  		gdtdescini 0x0, 	 0xFFFFF,	10011011b, 	1100b, 	GDT_vector(1); Codigo-> 32 bits code
+   215 00000005 6631DB              <1>  xor ebx, ebx
+   216                              <1> 
+   217 00000008 66BB00000000        <1>  mov ebx, %1
+   218 0000000E 891E[0A00]          <1>  mov [%5+gdtd_t.base00_15], bx
+   219 00000012 66C1EB10            <1>  shr ebx, 16
+   220 00000016 881E[0C00]          <1>  mov [%5+gdtd_t.base16_23], bl
+   221 0000001A 883E[0F00]          <1>  mov [%5+gdtd_t.base24_31], bh
+   222                              <1> 
+   223 0000001E 6631DB              <1>  xor ebx, ebx
+   224 00000021 66BBFFFF0F00        <1>  mov ebx, %2
+   225 00000027 891E[0800]          <1>  mov [%5+gdtd_t.limite],bx
+   226 0000002B 66C1EB10            <1>  shr ebx, 16
+   227 0000002F 881E[0E00]          <1>  mov [%5+gdtd_t.lim_prop],bl
+   228                              <1> 
+   229 00000033 30DB                <1>  xor bl, bl
+   230 00000035 B39B                <1>  mov bl, %3
+   231 00000037 881E[0D00]          <1>  mov [%5+gdtd_t.prop],bl
+   232                              <1> 
+   233 0000003B 30DB                <1>  xor bl, bl
+   234 0000003D B30C                <1>  mov bl, %4
+   235 0000003F C0E304              <1>  shl bl, 4
+   236 00000042 081E[0E00]          <1>  or [%5+gdtd_t.lim_prop],bl
+   237                              <1> 
+   238                                  		gdtdescini 0x0, 	 0xFFFFF,	10010011b, 	1100b, 	GDT_vector(2); Datos->  flat 4gb
+   239 00000046 6631DB              <1>  xor ebx, ebx
+   240                              <1> 
+   241 00000049 66BB00000000        <1>  mov ebx, %1
+   242 0000004F 891E[1200]          <1>  mov [%5+gdtd_t.base00_15], bx
+   243 00000053 66C1EB10            <1>  shr ebx, 16
+   244 00000057 881E[1400]          <1>  mov [%5+gdtd_t.base16_23], bl
+   245 0000005B 883E[1700]          <1>  mov [%5+gdtd_t.base24_31], bh
+   246                              <1> 
+   247 0000005F 6631DB              <1>  xor ebx, ebx
+   248 00000062 66BBFFFF0F00        <1>  mov ebx, %2
+   249 00000068 891E[1000]          <1>  mov [%5+gdtd_t.limite],bx
+   250 0000006C 66C1EB10            <1>  shr ebx, 16
+   251 00000070 881E[1600]          <1>  mov [%5+gdtd_t.lim_prop],bl
+   252                              <1> 
+   253 00000074 30DB                <1>  xor bl, bl
+   254 00000076 B393                <1>  mov bl, %3
+   255 00000078 881E[1500]          <1>  mov [%5+gdtd_t.prop],bl
+   256                              <1> 
+   257 0000007C 30DB                <1>  xor bl, bl
+   258 0000007E B30C                <1>  mov bl, %4
+   259 00000080 C0E304              <1>  shl bl, 4
+   260 00000083 081E[1600]          <1>  or [%5+gdtd_t.lim_prop],bl
+   261                              <1> 
+   262                                  		gdtdescini 0x0, 	 0xFFFFF,	11111011b, 	1100b, 	GDT_vector(3); Codigo-> 32 bits code user
+   263 00000087 6631DB              <1>  xor ebx, ebx
+   264                              <1> 
+   265 0000008A 66BB00000000        <1>  mov ebx, %1
+   266 00000090 891E[1A00]          <1>  mov [%5+gdtd_t.base00_15], bx
+   267 00000094 66C1EB10            <1>  shr ebx, 16
+   268 00000098 881E[1C00]          <1>  mov [%5+gdtd_t.base16_23], bl
+   269 0000009C 883E[1F00]          <1>  mov [%5+gdtd_t.base24_31], bh
+   270                              <1> 
+   271 000000A0 6631DB              <1>  xor ebx, ebx
+   272 000000A3 66BBFFFF0F00        <1>  mov ebx, %2
+   273 000000A9 891E[1800]          <1>  mov [%5+gdtd_t.limite],bx
+   274 000000AD 66C1EB10            <1>  shr ebx, 16
+   275 000000B1 881E[1E00]          <1>  mov [%5+gdtd_t.lim_prop],bl
+   276                              <1> 
+   277 000000B5 30DB                <1>  xor bl, bl
+   278 000000B7 B3FB                <1>  mov bl, %3
+   279 000000B9 881E[1D00]          <1>  mov [%5+gdtd_t.prop],bl
+   280                              <1> 
+   281 000000BD 30DB                <1>  xor bl, bl
+   282 000000BF B30C                <1>  mov bl, %4
+   283 000000C1 C0E304              <1>  shl bl, 4
+   284 000000C4 081E[1E00]          <1>  or [%5+gdtd_t.lim_prop],bl
+   285                              <1> 
+   286                                  		gdtdescini 0x0, 	 0xFFFFF,	11110011b, 	1100b, 	GDT_vector(4); Datos->  flat 4gb user
+   287 000000C8 6631DB              <1>  xor ebx, ebx
+   288                              <1> 
+   289 000000CB 66BB00000000        <1>  mov ebx, %1
+   290 000000D1 891E[2200]          <1>  mov [%5+gdtd_t.base00_15], bx
+   291 000000D5 66C1EB10            <1>  shr ebx, 16
+   292 000000D9 881E[2400]          <1>  mov [%5+gdtd_t.base16_23], bl
+   293 000000DD 883E[2700]          <1>  mov [%5+gdtd_t.base24_31], bh
+   294                              <1> 
+   295 000000E1 6631DB              <1>  xor ebx, ebx
+   296 000000E4 66BBFFFF0F00        <1>  mov ebx, %2
+   297 000000EA 891E[2000]          <1>  mov [%5+gdtd_t.limite],bx
+   298 000000EE 66C1EB10            <1>  shr ebx, 16
+   299 000000F2 881E[2600]          <1>  mov [%5+gdtd_t.lim_prop],bl
+   300                              <1> 
+   301 000000F6 30DB                <1>  xor bl, bl
+   302 000000F8 B3F3                <1>  mov bl, %3
+   303 000000FA 881E[2500]          <1>  mov [%5+gdtd_t.prop],bl
+   304                              <1> 
+   305 000000FE 30DB                <1>  xor bl, bl
+   306 00000100 B30C                <1>  mov bl, %4
+   307 00000102 C0E304              <1>  shl bl, 4
+   308 00000105 081E[2600]          <1>  or [%5+gdtd_t.lim_prop],bl
+   309                              <1> 
+   310                                  
+   311                                  
+   312 00000109 0F0116[0000]            		lgdt		[GDTR]			;Cargo el registro GDTR
+   313 0000010E 0F20C0                  		mov 		eax,CR0 ;Muevo CR0 al registro(el prefijo es automatico para que mov mueva de a 32bits)
+   314 00000111 6683C801                		or  		eax,0x01;Hago la mascara
+   315                                  
+   316                                  ;___________________________________________________modo protegido_________________________________________________________________________________________
+   317                                  
+   318 00000115 0F22C0                  		mov 		CR0,eax;Cargo el nuevo valor en CR0
+   319                                  
+   320 00000118 66EA[20010000]-         		jmp		long SEL_CS:_MP		;Salto largo para entrar en MP y cargar la GDT
+   321 0000011E [0000]             
+   322                                  
+   323                                  BITS 32
+   324                                  _MP:
+   325                                  
+   326 00000120 66B8[0000]              		mov 		ax, SEL_DATOS
+   327 00000124 8ED8                    		mov 		ds,ax 		; DS va con  SI
+   328 00000126 8EC0                    		mov 		es,ax 		; EDI va con ES
+   329 00000128 8ED0                    		mov 		ss,ax 		; SS va con SP
+   330 0000012A 66B8[0010]              		mov 		ax, PILA
+   331 0000012E 6689C4                  		mov 		sp,ax;
+   332                                  
+   333                                  
+   334                                  
+   335 00000131 E8(00000000)            		call 		_init_pant
+   336 00000136 6A03                    		push	 	3		;color
+   337 00000138 6A00                    		push		0		;fila
+   338 0000013A 6A00                    		push 		0		;columna
+   339 0000013C 68[00000000]            		push 		STARTING_S; 	* string
+   340 00000141 E8(CB000000)            		call 		_print
+   341 00000146 83C410                  		add 		esp, 16 	;quito del stack los parametros
+   342                                  
+   343                                  ;___________________________________________________cargo el lugar reservado de la IDT_________________________________________________________________________________________
+   344                                  
+   345                                  		idt_ini _handler0,  SEL_CS, 1000111100000000b, IDT_vector(0)
+   346 00000149 31DB                <1>  xor ebx, ebx
+   347                              <1> 
+   348 0000014B BB[0C010000]        <1>  mov ebx, %1
+   349 00000150 66891D[00000000]    <1>  mov [%4+idt_t.offset0_15], bx
+   350 00000157 C1EB10              <1>  shr ebx, 16
+   351 0000015A 66891D[06000000]    <1>  mov [%4+idt_t.offset16_31], bx
+   352                              <1> 
+   353 00000161 31DB                <1>  xor ebx, ebx
+   354 00000163 BB[00000000]        <1>  mov ebx, %2
+   355 00000168 66891D[02000000]    <1>  mov [%4+idt_t.sel_seg],bx
+   356                              <1> 
+   357 0000016F 31DB                <1>  xor ebx, ebx
+   358 00000171 BB008F0000          <1>  mov ebx, %3
+   359 00000176 66891D[04000000]    <1>  mov [%4+idt_t.prop], bx
+   360                                  		idt_ini _handler1,  SEL_CS, 1000111100000000b, IDT_vector(1)
+   361 0000017D 31DB                <1>  xor ebx, ebx
+   362                              <1> 
+   363 0000017F BB[2E010000]        <1>  mov ebx, %1
+   364 00000184 66891D[08000000]    <1>  mov [%4+idt_t.offset0_15], bx
+   365 0000018B C1EB10              <1>  shr ebx, 16
+   366 0000018E 66891D[0E000000]    <1>  mov [%4+idt_t.offset16_31], bx
+   367                              <1> 
+   368 00000195 31DB                <1>  xor ebx, ebx
+   369 00000197 BB[00000000]        <1>  mov ebx, %2
+   370 0000019C 66891D[0A000000]    <1>  mov [%4+idt_t.sel_seg],bx
+   371                              <1> 
+   372 000001A3 31DB                <1>  xor ebx, ebx
+   373 000001A5 BB008F0000          <1>  mov ebx, %3
+   374 000001AA 66891D[0C000000]    <1>  mov [%4+idt_t.prop], bx
+   375                                  		idt_ini _handler2,  SEL_CS, 1000111100000000b, IDT_vector(2) 
+   376 000001B1 31DB                <1>  xor ebx, ebx
+   377                              <1> 
+   378 000001B3 BB[50010000]        <1>  mov ebx, %1
+   379 000001B8 66891D[10000000]    <1>  mov [%4+idt_t.offset0_15], bx
+   380 000001BF C1EB10              <1>  shr ebx, 16
+   381 000001C2 66891D[16000000]    <1>  mov [%4+idt_t.offset16_31], bx
+   382                              <1> 
+   383 000001C9 31DB                <1>  xor ebx, ebx
+   384 000001CB BB[00000000]        <1>  mov ebx, %2
+   385 000001D0 66891D[12000000]    <1>  mov [%4+idt_t.sel_seg],bx
+   386                              <1> 
+   387 000001D7 31DB                <1>  xor ebx, ebx
+   388 000001D9 BB008F0000          <1>  mov ebx, %3
+   389 000001DE 66891D[14000000]    <1>  mov [%4+idt_t.prop], bx
+   390                                  		idt_ini _handler3,  SEL_CS, 1000111100000000b, IDT_vector(3) 
+   391 000001E5 31DB                <1>  xor ebx, ebx
+   392                              <1> 
+   393 000001E7 BB[72010000]        <1>  mov ebx, %1
+   394 000001EC 66891D[18000000]    <1>  mov [%4+idt_t.offset0_15], bx
+   395 000001F3 C1EB10              <1>  shr ebx, 16
+   396 000001F6 66891D[1E000000]    <1>  mov [%4+idt_t.offset16_31], bx
+   397                              <1> 
+   398 000001FD 31DB                <1>  xor ebx, ebx
+   399 000001FF BB[00000000]        <1>  mov ebx, %2
+   400 00000204 66891D[1A000000]    <1>  mov [%4+idt_t.sel_seg],bx
+   401                              <1> 
+   402 0000020B 31DB                <1>  xor ebx, ebx
+   403 0000020D BB008F0000          <1>  mov ebx, %3
+   404 00000212 66891D[1C000000]    <1>  mov [%4+idt_t.prop], bx
+   405                                  		idt_ini _handler4,  SEL_CS, 1000111100000000b, IDT_vector(4) 
+   406 00000219 31DB                <1>  xor ebx, ebx
+   407                              <1> 
+   408 0000021B BB[94010000]        <1>  mov ebx, %1
+   409 00000220 66891D[20000000]    <1>  mov [%4+idt_t.offset0_15], bx
+   410 00000227 C1EB10              <1>  shr ebx, 16
+   411 0000022A 66891D[26000000]    <1>  mov [%4+idt_t.offset16_31], bx
+   412                              <1> 
+   413 00000231 31DB                <1>  xor ebx, ebx
+   414 00000233 BB[00000000]        <1>  mov ebx, %2
+   415 00000238 66891D[22000000]    <1>  mov [%4+idt_t.sel_seg],bx
+   416                              <1> 
+   417 0000023F 31DB                <1>  xor ebx, ebx
+   418 00000241 BB008F0000          <1>  mov ebx, %3
+   419 00000246 66891D[24000000]    <1>  mov [%4+idt_t.prop], bx
+   420                                  		idt_ini _handler5,  SEL_CS, 1000111100000000b, IDT_vector(5) 
+   421 0000024D 31DB                <1>  xor ebx, ebx
+   422                              <1> 
+   423 0000024F BB[B6010000]        <1>  mov ebx, %1
+   424 00000254 66891D[28000000]    <1>  mov [%4+idt_t.offset0_15], bx
+   425 0000025B C1EB10              <1>  shr ebx, 16
+   426 0000025E 66891D[2E000000]    <1>  mov [%4+idt_t.offset16_31], bx
+   427                              <1> 
+   428 00000265 31DB                <1>  xor ebx, ebx
+   429 00000267 BB[00000000]        <1>  mov ebx, %2
+   430 0000026C 66891D[2A000000]    <1>  mov [%4+idt_t.sel_seg],bx
+   431                              <1> 
+   432 00000273 31DB                <1>  xor ebx, ebx
+   433 00000275 BB008F0000          <1>  mov ebx, %3
+   434 0000027A 66891D[2C000000]    <1>  mov [%4+idt_t.prop], bx
+   435                                  		idt_ini _handler6,  SEL_CS, 1000111100000000b, IDT_vector(6) 
+   436 00000281 31DB                <1>  xor ebx, ebx
+   437                              <1> 
+   438 00000283 BB[D8010000]        <1>  mov ebx, %1
+   439 00000288 66891D[30000000]    <1>  mov [%4+idt_t.offset0_15], bx
+   440 0000028F C1EB10              <1>  shr ebx, 16
+   441 00000292 66891D[36000000]    <1>  mov [%4+idt_t.offset16_31], bx
+   442                              <1> 
+   443 00000299 31DB                <1>  xor ebx, ebx
+   444 0000029B BB[00000000]        <1>  mov ebx, %2
+   445 000002A0 66891D[32000000]    <1>  mov [%4+idt_t.sel_seg],bx
+   446                              <1> 
+   447 000002A7 31DB                <1>  xor ebx, ebx
+   448 000002A9 BB008F0000          <1>  mov ebx, %3
+   449 000002AE 66891D[34000000]    <1>  mov [%4+idt_t.prop], bx
+   450                                  		idt_ini _handler7,  SEL_CS, 1000111100000000b, IDT_vector(7) 
+   451 000002B5 31DB                <1>  xor ebx, ebx
+   452                              <1> 
+   453 000002B7 BB[FA010000]        <1>  mov ebx, %1
+   454 000002BC 66891D[38000000]    <1>  mov [%4+idt_t.offset0_15], bx
+   455 000002C3 C1EB10              <1>  shr ebx, 16
+   456 000002C6 66891D[3E000000]    <1>  mov [%4+idt_t.offset16_31], bx
+   457                              <1> 
+   458 000002CD 31DB                <1>  xor ebx, ebx
+   459 000002CF BB[00000000]        <1>  mov ebx, %2
+   460 000002D4 66891D[3A000000]    <1>  mov [%4+idt_t.sel_seg],bx
+   461                              <1> 
+   462 000002DB 31DB                <1>  xor ebx, ebx
+   463 000002DD BB008F0000          <1>  mov ebx, %3
+   464 000002E2 66891D[3C000000]    <1>  mov [%4+idt_t.prop], bx
+   465                                  		idt_ini _handler8,  SEL_CS, 1000111100000000b, IDT_vector(8) 
+   466 000002E9 31DB                <1>  xor ebx, ebx
+   467                              <1> 
+   468 000002EB BB[43020000]        <1>  mov ebx, %1
+   469 000002F0 66891D[40000000]    <1>  mov [%4+idt_t.offset0_15], bx
+   470 000002F7 C1EB10              <1>  shr ebx, 16
+   471 000002FA 66891D[46000000]    <1>  mov [%4+idt_t.offset16_31], bx
+   472                              <1> 
+   473 00000301 31DB                <1>  xor ebx, ebx
+   474 00000303 BB[00000000]        <1>  mov ebx, %2
+   475 00000308 66891D[42000000]    <1>  mov [%4+idt_t.sel_seg],bx
+   476                              <1> 
+   477 0000030F 31DB                <1>  xor ebx, ebx
+   478 00000311 BB008F0000          <1>  mov ebx, %3
+   479 00000316 66891D[44000000]    <1>  mov [%4+idt_t.prop], bx
+   480                                  		idt_ini _handler9,  SEL_CS, 1000111100000000b, IDT_vector(9) 
+   481 0000031D 31DB                <1>  xor ebx, ebx
+   482                              <1> 
+   483 0000031F BB[65020000]        <1>  mov ebx, %1
+   484 00000324 66891D[48000000]    <1>  mov [%4+idt_t.offset0_15], bx
+   485 0000032B C1EB10              <1>  shr ebx, 16
+   486 0000032E 66891D[4E000000]    <1>  mov [%4+idt_t.offset16_31], bx
+   487                              <1> 
+   488 00000335 31DB                <1>  xor ebx, ebx
+   489 00000337 BB[00000000]        <1>  mov ebx, %2
+   490 0000033C 66891D[4A000000]    <1>  mov [%4+idt_t.sel_seg],bx
+   491                              <1> 
+   492 00000343 31DB                <1>  xor ebx, ebx
+   493 00000345 BB008F0000          <1>  mov ebx, %3
+   494 0000034A 66891D[4C000000]    <1>  mov [%4+idt_t.prop], bx
+   495                                  		idt_ini _handler10, SEL_CS, 1000111100000000b, IDT_vector(10) 
+   496 00000351 31DB                <1>  xor ebx, ebx
+   497                              <1> 
+   498 00000353 BB[87020000]        <1>  mov ebx, %1
+   499 00000358 66891D[50000000]    <1>  mov [%4+idt_t.offset0_15], bx
+   500 0000035F C1EB10              <1>  shr ebx, 16
+   501 00000362 66891D[56000000]    <1>  mov [%4+idt_t.offset16_31], bx
+   502                              <1> 
+   503 00000369 31DB                <1>  xor ebx, ebx
+   504 0000036B BB[00000000]        <1>  mov ebx, %2
+   505 00000370 66891D[52000000]    <1>  mov [%4+idt_t.sel_seg],bx
+   506                              <1> 
+   507 00000377 31DB                <1>  xor ebx, ebx
+   508 00000379 BB008F0000          <1>  mov ebx, %3
+   509 0000037E 66891D[54000000]    <1>  mov [%4+idt_t.prop], bx
+   510                                  		idt_ini _handler11, SEL_CS, 1000111100000000b, IDT_vector(11) 
+   511 00000385 31DB                <1>  xor ebx, ebx
+   512                              <1> 
+   513 00000387 BB[A9020000]        <1>  mov ebx, %1
+   514 0000038C 66891D[58000000]    <1>  mov [%4+idt_t.offset0_15], bx
+   515 00000393 C1EB10              <1>  shr ebx, 16
+   516 00000396 66891D[5E000000]    <1>  mov [%4+idt_t.offset16_31], bx
+   517                              <1> 
+   518 0000039D 31DB                <1>  xor ebx, ebx
+   519 0000039F BB[00000000]        <1>  mov ebx, %2
+   520 000003A4 66891D[5A000000]    <1>  mov [%4+idt_t.sel_seg],bx
+   521                              <1> 
+   522 000003AB 31DB                <1>  xor ebx, ebx
+   523 000003AD BB008F0000          <1>  mov ebx, %3
+   524 000003B2 66891D[5C000000]    <1>  mov [%4+idt_t.prop], bx
+   525                                  		idt_ini _handler12, SEL_CS, 1000111100000000b, IDT_vector(12) 
+   526 000003B9 31DB                <1>  xor ebx, ebx
+   527                              <1> 
+   528 000003BB BB[CB020000]        <1>  mov ebx, %1
+   529 000003C0 66891D[60000000]    <1>  mov [%4+idt_t.offset0_15], bx
+   530 000003C7 C1EB10              <1>  shr ebx, 16
+   531 000003CA 66891D[66000000]    <1>  mov [%4+idt_t.offset16_31], bx
+   532                              <1> 
+   533 000003D1 31DB                <1>  xor ebx, ebx
+   534 000003D3 BB[00000000]        <1>  mov ebx, %2
+   535 000003D8 66891D[62000000]    <1>  mov [%4+idt_t.sel_seg],bx
+   536                              <1> 
+   537 000003DF 31DB                <1>  xor ebx, ebx
+   538 000003E1 BB008F0000          <1>  mov ebx, %3
+   539 000003E6 66891D[64000000]    <1>  mov [%4+idt_t.prop], bx
+   540                                  		idt_ini _handler13, SEL_CS, 1000111100000000b, IDT_vector(13) 
+   541 000003ED 31DB                <1>  xor ebx, ebx
+   542                              <1> 
+   543 000003EF BB[ED020000]        <1>  mov ebx, %1
+   544 000003F4 66891D[68000000]    <1>  mov [%4+idt_t.offset0_15], bx
+   545 000003FB C1EB10              <1>  shr ebx, 16
+   546 000003FE 66891D[6E000000]    <1>  mov [%4+idt_t.offset16_31], bx
+   547                              <1> 
+   548 00000405 31DB                <1>  xor ebx, ebx
+   549 00000407 BB[00000000]        <1>  mov ebx, %2
+   550 0000040C 66891D[6A000000]    <1>  mov [%4+idt_t.sel_seg],bx
+   551                              <1> 
+   552 00000413 31DB                <1>  xor ebx, ebx
+   553 00000415 BB008F0000          <1>  mov ebx, %3
+   554 0000041A 66891D[6C000000]    <1>  mov [%4+idt_t.prop], bx
+   555                                  		idt_ini _handler14, SEL_CS, 1000111100000000b, IDT_vector(14) 
+   556 00000421 31DB                <1>  xor ebx, ebx
+   557                              <1> 
+   558 00000423 BB[0F030000]        <1>  mov ebx, %1
+   559 00000428 66891D[70000000]    <1>  mov [%4+idt_t.offset0_15], bx
+   560 0000042F C1EB10              <1>  shr ebx, 16
+   561 00000432 66891D[76000000]    <1>  mov [%4+idt_t.offset16_31], bx
+   562                              <1> 
+   563 00000439 31DB                <1>  xor ebx, ebx
+   564 0000043B BB[00000000]        <1>  mov ebx, %2
+   565 00000440 66891D[72000000]    <1>  mov [%4+idt_t.sel_seg],bx
+   566                              <1> 
+   567 00000447 31DB                <1>  xor ebx, ebx
+   568 00000449 BB008F0000          <1>  mov ebx, %3
+   569 0000044E 66891D[74000000]    <1>  mov [%4+idt_t.prop], bx
+   570                                  		idt_ini _handler22, SEL_CS, 1000111100000000b, IDT_vector(22) 
+   571 00000455 31DB                <1>  xor ebx, ebx
+   572                              <1> 
+   573 00000457 BB[D9030000]        <1>  mov ebx, %1
+   574 0000045C 66891D[B0000000]    <1>  mov [%4+idt_t.offset0_15], bx
+   575 00000463 C1EB10              <1>  shr ebx, 16
+   576 00000466 66891D[B6000000]    <1>  mov [%4+idt_t.offset16_31], bx
+   577                              <1> 
+   578 0000046D 31DB                <1>  xor ebx, ebx
+   579 0000046F BB[00000000]        <1>  mov ebx, %2
+   580 00000474 66891D[B2000000]    <1>  mov [%4+idt_t.sel_seg],bx
+   581                              <1> 
+   582 0000047B 31DB                <1>  xor ebx, ebx
+   583 0000047D BB008F0000          <1>  mov ebx, %3
+   584 00000482 66891D[B4000000]    <1>  mov [%4+idt_t.prop], bx
+   585                                  		idt_ini _handler32, SEL_CS, 1000111000000000b, IDT_vector(32) 
+   586 00000489 31DB                <1>  xor ebx, ebx
+   587                              <1> 
+   588 0000048B BB[F6030000]        <1>  mov ebx, %1
+   589 00000490 66891D[00010000]    <1>  mov [%4+idt_t.offset0_15], bx
+   590 00000497 C1EB10              <1>  shr ebx, 16
+   591 0000049A 66891D[06010000]    <1>  mov [%4+idt_t.offset16_31], bx
+   592                              <1> 
+   593 000004A1 31DB                <1>  xor ebx, ebx
+   594 000004A3 BB[00000000]        <1>  mov ebx, %2
+   595 000004A8 66891D[02010000]    <1>  mov [%4+idt_t.sel_seg],bx
+   596                              <1> 
+   597 000004AF 31DB                <1>  xor ebx, ebx
+   598 000004B1 BB008E0000          <1>  mov ebx, %3
+   599 000004B6 66891D[04010000]    <1>  mov [%4+idt_t.prop], bx
+   600                                  		idt_ini _handler33, SEL_CS, 1000111000000000b, IDT_vector(33) 
+   601 000004BD 31DB                <1>  xor ebx, ebx
+   602                              <1> 
+   603 000004BF BB[9F040000]        <1>  mov ebx, %1
+   604 000004C4 66891D[08010000]    <1>  mov [%4+idt_t.offset0_15], bx
+   605 000004CB C1EB10              <1>  shr ebx, 16
+   606 000004CE 66891D[0E010000]    <1>  mov [%4+idt_t.offset16_31], bx
+   607                              <1> 
+   608 000004D5 31DB                <1>  xor ebx, ebx
+   609 000004D7 BB[00000000]        <1>  mov ebx, %2
+   610 000004DC 66891D[0A010000]    <1>  mov [%4+idt_t.sel_seg],bx
+   611                              <1> 
+   612 000004E3 31DB                <1>  xor ebx, ebx
+   613 000004E5 BB008E0000          <1>  mov ebx, %3
+   614 000004EA 66891D[0C010000]    <1>  mov [%4+idt_t.prop], bx
+   615                                  		idt_ini _handler34, SEL_CS, 1000111000000000b, IDT_vector(34) 
+   616 000004F1 31DB                <1>  xor ebx, ebx
+   617                              <1> 
+   618 000004F3 BB[06060000]        <1>  mov ebx, %1
+   619 000004F8 66891D[10010000]    <1>  mov [%4+idt_t.offset0_15], bx
+   620 000004FF C1EB10              <1>  shr ebx, 16
+   621 00000502 66891D[16010000]    <1>  mov [%4+idt_t.offset16_31], bx
+   622                              <1> 
+   623 00000509 31DB                <1>  xor ebx, ebx
+   624 0000050B BB[00000000]        <1>  mov ebx, %2
+   625 00000510 66891D[12010000]    <1>  mov [%4+idt_t.sel_seg],bx
+   626                              <1> 
+   627 00000517 31DB                <1>  xor ebx, ebx
+   628 00000519 BB008E0000          <1>  mov ebx, %3
+   629 0000051E 66891D[14010000]    <1>  mov [%4+idt_t.prop], bx
+   630                                  		idt_ini _handler35, SEL_CS, 1000111000000000b, IDT_vector(35) 
+   631 00000525 31DB                <1>  xor ebx, ebx
+   632                              <1> 
+   633 00000527 BB[28060000]        <1>  mov ebx, %1
+   634 0000052C 66891D[18010000]    <1>  mov [%4+idt_t.offset0_15], bx
+   635 00000533 C1EB10              <1>  shr ebx, 16
+   636 00000536 66891D[1E010000]    <1>  mov [%4+idt_t.offset16_31], bx
+   637                              <1> 
+   638 0000053D 31DB                <1>  xor ebx, ebx
+   639 0000053F BB[00000000]        <1>  mov ebx, %2
+   640 00000544 66891D[1A010000]    <1>  mov [%4+idt_t.sel_seg],bx
+   641                              <1> 
+   642 0000054B 31DB                <1>  xor ebx, ebx
+   643 0000054D BB008E0000          <1>  mov ebx, %3
+   644 00000552 66891D[1C010000]    <1>  mov [%4+idt_t.prop], bx
+   645                                  		idt_ini _handler36, SEL_CS, 1000111000000000b, IDT_vector(36) 
+   646 00000559 31DB                <1>  xor ebx, ebx
+   647                              <1> 
+   648 0000055B BB[4A060000]        <1>  mov ebx, %1
+   649 00000560 66891D[20010000]    <1>  mov [%4+idt_t.offset0_15], bx
+   650 00000567 C1EB10              <1>  shr ebx, 16
+   651 0000056A 66891D[26010000]    <1>  mov [%4+idt_t.offset16_31], bx
+   652                              <1> 
+   653 00000571 31DB                <1>  xor ebx, ebx
+   654 00000573 BB[00000000]        <1>  mov ebx, %2
+   655 00000578 66891D[22010000]    <1>  mov [%4+idt_t.sel_seg],bx
+   656                              <1> 
+   657 0000057F 31DB                <1>  xor ebx, ebx
+   658 00000581 BB008E0000          <1>  mov ebx, %3
+   659 00000586 66891D[24010000]    <1>  mov [%4+idt_t.prop], bx
+   660                                  		idt_ini _handler37, SEL_CS, 1000111000000000b, IDT_vector(37) 
+   661 0000058D 31DB                <1>  xor ebx, ebx
+   662                              <1> 
+   663 0000058F BB[6C060000]        <1>  mov ebx, %1
+   664 00000594 66891D[28010000]    <1>  mov [%4+idt_t.offset0_15], bx
+   665 0000059B C1EB10              <1>  shr ebx, 16
+   666 0000059E 66891D[2E010000]    <1>  mov [%4+idt_t.offset16_31], bx
+   667                              <1> 
+   668 000005A5 31DB                <1>  xor ebx, ebx
+   669 000005A7 BB[00000000]        <1>  mov ebx, %2
+   670 000005AC 66891D[2A010000]    <1>  mov [%4+idt_t.sel_seg],bx
+   671                              <1> 
+   672 000005B3 31DB                <1>  xor ebx, ebx
+   673 000005B5 BB008E0000          <1>  mov ebx, %3
+   674 000005BA 66891D[2C010000]    <1>  mov [%4+idt_t.prop], bx
+   675                                  		idt_ini _handler38, SEL_CS, 1000111000000000b, IDT_vector(38) 
+   676 000005C1 31DB                <1>  xor ebx, ebx
+   677                              <1> 
+   678 000005C3 BB[8E060000]        <1>  mov ebx, %1
+   679 000005C8 66891D[30010000]    <1>  mov [%4+idt_t.offset0_15], bx
+   680 000005CF C1EB10              <1>  shr ebx, 16
+   681 000005D2 66891D[36010000]    <1>  mov [%4+idt_t.offset16_31], bx
+   682                              <1> 
+   683 000005D9 31DB                <1>  xor ebx, ebx
+   684 000005DB BB[00000000]        <1>  mov ebx, %2
+   685 000005E0 66891D[32010000]    <1>  mov [%4+idt_t.sel_seg],bx
+   686                              <1> 
+   687 000005E7 31DB                <1>  xor ebx, ebx
+   688 000005E9 BB008E0000          <1>  mov ebx, %3
+   689 000005EE 66891D[34010000]    <1>  mov [%4+idt_t.prop], bx
+   690                                  		idt_ini _handler39, SEL_CS, 1000111000000000b, IDT_vector(39) 
+   691 000005F5 31DB                <1>  xor ebx, ebx
+   692                              <1> 
+   693 000005F7 BB[B0060000]        <1>  mov ebx, %1
+   694 000005FC 66891D[38010000]    <1>  mov [%4+idt_t.offset0_15], bx
+   695 00000603 C1EB10              <1>  shr ebx, 16
+   696 00000606 66891D[3E010000]    <1>  mov [%4+idt_t.offset16_31], bx
+   697                              <1> 
+   698 0000060D 31DB                <1>  xor ebx, ebx
+   699 0000060F BB[00000000]        <1>  mov ebx, %2
+   700 00000614 66891D[3A010000]    <1>  mov [%4+idt_t.sel_seg],bx
+   701                              <1> 
+   702 0000061B 31DB                <1>  xor ebx, ebx
+   703 0000061D BB008E0000          <1>  mov ebx, %3
+   704 00000622 66891D[3C010000]    <1>  mov [%4+idt_t.prop], bx
+   705                                  		idt_ini _handler40, SEL_CS, 1000111000000000b, IDT_vector(40) 
+   706 00000629 31DB                <1>  xor ebx, ebx
+   707                              <1> 
+   708 0000062B BB[D2060000]        <1>  mov ebx, %1
+   709 00000630 66891D[40010000]    <1>  mov [%4+idt_t.offset0_15], bx
+   710 00000637 C1EB10              <1>  shr ebx, 16
+   711 0000063A 66891D[46010000]    <1>  mov [%4+idt_t.offset16_31], bx
+   712                              <1> 
+   713 00000641 31DB                <1>  xor ebx, ebx
+   714 00000643 BB[00000000]        <1>  mov ebx, %2
+   715 00000648 66891D[42010000]    <1>  mov [%4+idt_t.sel_seg],bx
+   716                              <1> 
+   717 0000064F 31DB                <1>  xor ebx, ebx
+   718 00000651 BB008E0000          <1>  mov ebx, %3
+   719 00000656 66891D[44010000]    <1>  mov [%4+idt_t.prop], bx
+   720                                  		idt_ini _handler41, SEL_CS, 1000111000000000b, IDT_vector(41) 
+   721 0000065D 31DB                <1>  xor ebx, ebx
+   722                              <1> 
+   723 0000065F BB[F4060000]        <1>  mov ebx, %1
+   724 00000664 66891D[48010000]    <1>  mov [%4+idt_t.offset0_15], bx
+   725 0000066B C1EB10              <1>  shr ebx, 16
+   726 0000066E 66891D[4E010000]    <1>  mov [%4+idt_t.offset16_31], bx
+   727                              <1> 
+   728 00000675 31DB                <1>  xor ebx, ebx
+   729 00000677 BB[00000000]        <1>  mov ebx, %2
+   730 0000067C 66891D[4A010000]    <1>  mov [%4+idt_t.sel_seg],bx
+   731                              <1> 
+   732 00000683 31DB                <1>  xor ebx, ebx
+   733 00000685 BB008E0000          <1>  mov ebx, %3
+   734 0000068A 66891D[4C010000]    <1>  mov [%4+idt_t.prop], bx
+   735                                  		idt_ini _handler42, SEL_CS, 1000111000000000b, IDT_vector(42) 
+   736 00000691 31DB                <1>  xor ebx, ebx
+   737                              <1> 
+   738 00000693 BB[16070000]        <1>  mov ebx, %1
+   739 00000698 66891D[50010000]    <1>  mov [%4+idt_t.offset0_15], bx
+   740 0000069F C1EB10              <1>  shr ebx, 16
+   741 000006A2 66891D[56010000]    <1>  mov [%4+idt_t.offset16_31], bx
+   742                              <1> 
+   743 000006A9 31DB                <1>  xor ebx, ebx
+   744 000006AB BB[00000000]        <1>  mov ebx, %2
+   745 000006B0 66891D[52010000]    <1>  mov [%4+idt_t.sel_seg],bx
+   746                              <1> 
+   747 000006B7 31DB                <1>  xor ebx, ebx
+   748 000006B9 BB008E0000          <1>  mov ebx, %3
+   749 000006BE 66891D[54010000]    <1>  mov [%4+idt_t.prop], bx
+   750                                  		idt_ini _handler43, SEL_CS, 1000111000000000b, IDT_vector(43) 
+   751 000006C5 31DB                <1>  xor ebx, ebx
+   752                              <1> 
+   753 000006C7 BB[38070000]        <1>  mov ebx, %1
+   754 000006CC 66891D[58010000]    <1>  mov [%4+idt_t.offset0_15], bx
+   755 000006D3 C1EB10              <1>  shr ebx, 16
+   756 000006D6 66891D[5E010000]    <1>  mov [%4+idt_t.offset16_31], bx
+   757                              <1> 
+   758 000006DD 31DB                <1>  xor ebx, ebx
+   759 000006DF BB[00000000]        <1>  mov ebx, %2
+   760 000006E4 66891D[5A010000]    <1>  mov [%4+idt_t.sel_seg],bx
+   761                              <1> 
+   762 000006EB 31DB                <1>  xor ebx, ebx
+   763 000006ED BB008E0000          <1>  mov ebx, %3
+   764 000006F2 66891D[5C010000]    <1>  mov [%4+idt_t.prop], bx
+   765                                  		idt_ini _handler44, SEL_CS, 1000111000000000b, IDT_vector(44) 
+   766 000006F9 31DB                <1>  xor ebx, ebx
+   767                              <1> 
+   768 000006FB BB[5A070000]        <1>  mov ebx, %1
+   769 00000700 66891D[60010000]    <1>  mov [%4+idt_t.offset0_15], bx
+   770 00000707 C1EB10              <1>  shr ebx, 16
+   771 0000070A 66891D[66010000]    <1>  mov [%4+idt_t.offset16_31], bx
+   772                              <1> 
+   773 00000711 31DB                <1>  xor ebx, ebx
+   774 00000713 BB[00000000]        <1>  mov ebx, %2
+   775 00000718 66891D[62010000]    <1>  mov [%4+idt_t.sel_seg],bx
+   776                              <1> 
+   777 0000071F 31DB                <1>  xor ebx, ebx
+   778 00000721 BB008E0000          <1>  mov ebx, %3
+   779 00000726 66891D[64010000]    <1>  mov [%4+idt_t.prop], bx
+   780                                  		idt_ini _handler45, SEL_CS, 1000111000000000b, IDT_vector(45) 
+   781 0000072D 31DB                <1>  xor ebx, ebx
+   782                              <1> 
+   783 0000072F BB[7C070000]        <1>  mov ebx, %1
+   784 00000734 66891D[68010000]    <1>  mov [%4+idt_t.offset0_15], bx
+   785 0000073B C1EB10              <1>  shr ebx, 16
+   786 0000073E 66891D[6E010000]    <1>  mov [%4+idt_t.offset16_31], bx
+   787                              <1> 
+   788 00000745 31DB                <1>  xor ebx, ebx
+   789 00000747 BB[00000000]        <1>  mov ebx, %2
+   790 0000074C 66891D[6A010000]    <1>  mov [%4+idt_t.sel_seg],bx
+   791                              <1> 
+   792 00000753 31DB                <1>  xor ebx, ebx
+   793 00000755 BB008E0000          <1>  mov ebx, %3
+   794 0000075A 66891D[6C010000]    <1>  mov [%4+idt_t.prop], bx
+   795                                  		idt_ini _handler46, SEL_CS, 1000111000000000b, IDT_vector(46) 
+   796 00000761 31DB                <1>  xor ebx, ebx
+   797                              <1> 
+   798 00000763 BB[9E070000]        <1>  mov ebx, %1
+   799 00000768 66891D[70010000]    <1>  mov [%4+idt_t.offset0_15], bx
+   800 0000076F C1EB10              <1>  shr ebx, 16
+   801 00000772 66891D[76010000]    <1>  mov [%4+idt_t.offset16_31], bx
+   802                              <1> 
+   803 00000779 31DB                <1>  xor ebx, ebx
+   804 0000077B BB[00000000]        <1>  mov ebx, %2
+   805 00000780 66891D[72010000]    <1>  mov [%4+idt_t.sel_seg],bx
+   806                              <1> 
+   807 00000787 31DB                <1>  xor ebx, ebx
+   808 00000789 BB008E0000          <1>  mov ebx, %3
+   809 0000078E 66891D[74010000]    <1>  mov [%4+idt_t.prop], bx
+   810                                  		idt_ini _handler47, SEL_CS, 1000111000000000b, IDT_vector(47) 
+   811 00000795 31DB                <1>  xor ebx, ebx
+   812                              <1> 
+   813 00000797 BB[C0070000]        <1>  mov ebx, %1
+   814 0000079C 66891D[78010000]    <1>  mov [%4+idt_t.offset0_15], bx
+   815 000007A3 C1EB10              <1>  shr ebx, 16
+   816 000007A6 66891D[7E010000]    <1>  mov [%4+idt_t.offset16_31], bx
+   817                              <1> 
+   818 000007AD 31DB                <1>  xor ebx, ebx
+   819 000007AF BB[00000000]        <1>  mov ebx, %2
+   820 000007B4 66891D[7A010000]    <1>  mov [%4+idt_t.sel_seg],bx
+   821                              <1> 
+   822 000007BB 31DB                <1>  xor ebx, ebx
+   823 000007BD BB008E0000          <1>  mov ebx, %3
+   824 000007C2 66891D[7C010000]    <1>  mov [%4+idt_t.prop], bx
+   825                                  		idt_ini _int80h, SEL_CS, 1110111000000000b, IDT_vector(128) ;80h 
+   826 000007C9 31DB                <1>  xor ebx, ebx
+   827                              <1> 
+   828 000007CB BB[E2070000]        <1>  mov ebx, %1
+   829 000007D0 66891D[00040000]    <1>  mov [%4+idt_t.offset0_15], bx
+   830 000007D7 C1EB10              <1>  shr ebx, 16
+   831 000007DA 66891D[06040000]    <1>  mov [%4+idt_t.offset16_31], bx
+   832                              <1> 
+   833 000007E1 31DB                <1>  xor ebx, ebx
+   834 000007E3 BB[00000000]        <1>  mov ebx, %2
+   835 000007E8 66891D[02040000]    <1>  mov [%4+idt_t.sel_seg],bx
+   836                              <1> 
+   837 000007EF 31DB                <1>  xor ebx, ebx
+   838 000007F1 BB00EE0000          <1>  mov ebx, %3
+   839 000007F6 66891D[04040000]    <1>  mov [%4+idt_t.prop], bx
+   840                                  
+   841                                  
+   842 000007FD 0F011D[00000000]        		lidt [IDTR]			;cargo el IDTR con el valor limite y la direccion de inicio de la tabla      
+   843 00000804 FB                      		sti
+   844                                  
+   845                                  ;___________________________________________________configuro los PICs_________________________________________________________________________________________
+   846                                  
+   847 00000805 E817050000              		call		_Configurar_PICs 
+   848 0000080A B000                    		mov    		 al, 00h	; interrupciones del PIC 2
+   849 0000080C E6A1                    		out    		 0A1h, al
+   850                                  
+   851 0000080E B034                    		mov al,00110100b 	;b0:	0:16bit binary 1: BCD four digit
+   852                                  						;b1~3:	000: mode 0 interrupt on terminal count
+   853                                  						;001: mode 1 hardware re-triggerable one-shot
+   854                                  						;010: mode 2 rate generator
+   855                                  						;011: mode 3	software wave generator
+   856                                  						;100: mode 4 software triggered strobe
+   857                                  						;101: mode 5 hardware triggered strobe
+   858                                  						;110: mode 6 rate generator, same as 010b
+   859                                  						;111: mode 7 square wave generator, same as 011b
+   860                                  						;b4~5:	00: latch count value command
+   861                                  						;01: access mode: lobyte only
+   862                                  						;10: access mode: hibyte only
+   863                                  						;11: access mode: lobyte/hibyte
+   864                                  						;b6~7:	00: channel 0
+   865                                  						;01: channel 1
+   866                                  						;10: channel 2
+   867                                  						;11: read-back command (8254 only)
+   868 00000810 E643                    		out 43h,al
+   869 00000812 66B88E2E                		mov ax,11918		; 1ms
+   870 00000816 E640                    		out 40h,al
+   871 00000818 88E0                    		mov al,ah
+   872 0000081A E640                    		out 40h,al	
+   873                                  		
+   874 0000081C B001                    		mov    		 al, 01h		;  interrupciones del PIC 1  - int timer tick 
+   875 0000081E E621                    		out    		 21h, al
+   876                                  
+   877                                  ;___________________________________________________INICIALIZACION DE TABLAS DE PAGINACION_________________________________________________________________________________________
+   878                                  
+   879                                  ;ABI32 void _zero_me(inicio, fin)
+   880                                  ;pongo en cero la seccion ya que el handler correspondiente comprara las entradas contra 0 para saber si hay que asignar entradas en los
+   881                                  ;distintos niveles o page tables nuevas...
+   882 00000820 6800502000              push 0205000h; final
+   883 00000825 6800002000              push 0200000h; inicio
+   884 0000082A E8(1B000000)            call _zero_me
+   885 0000082F 83C408                  add esp, 8;quito del stack los parametros
+   886                                  
+   887                                  
+   888                                   
+   889 00000832 BF00002000              		mov 		edi, 0200000h; dir fisica de mi directorio = a mi lineal por ahora
+   890 00000837 0F22DF                  		mov 		cr3, edi; 
+   891 0000083A C70727102000            		mov 		dword [edi], 0201000h+PT_P+PT_RW+PT_A+PT_U; cargo la primer entrada 
+   892                                  		
+   893 00000840 B800000000              		mov eax, 0x0
+   894 00000845 BB00000000              		mov ebx, 0x0
+   895                                  		.fill_table:
+   896 0000084A 89D9                    		      mov ecx, ebx
+   897 0000084C 83C127                  		      add ecx, PT_P+PT_RW+PT_A+PT_U
+   898 0000084F 890C8500102000          		      mov [0201000h+eax*4], ecx ; mapeo primeros 4mb
+   899 00000856 81C300100000            		      add ebx, 4096
+   900 0000085C 40                      		      inc eax
+   901 0000085D 3D00040000              		      cmp eax, 1024
+   902 00000862 7402                    		      je .end
+   903 00000864 EBE4                    		      jmp .fill_table
+   904                                  		.end:
+   905                                  
+   906                                  
+   907                                  		  
+   908 00000866 6800002000              push 0200000h
+   909 0000086B 6800001000              push 0100000h
+   910 00000870 E8(36000000)            call _page_me
+   911 00000875 83C408                  add esp, 8;quito del stack los parametros
+   912                                  
+   913                                  
+   914                                  
+   915                                  ;activo paginacion
+   916 00000878 6687DB                  		xchg bx,bx
+   917                                  
+   918 0000087B 0F20C0                  		mov eax, cr0
+   919 0000087E 0D01000080              		or eax, 0x80000001
+   920 00000883 0F22C0                  		mov cr0, eax
+   921                                  
+   922                                  
+   923                                    
+   924                                  		
+   925                                  
+   926                                  
+   927                                  
+   928                                  
+   929                                  
+   930                                  ;___________________________________________________TASK SWITCHING AUTOMATICO______________________________________________________________________________________
+   931                                  
+   932                                  ;cargo tres task gate 
+   933                                  ;Nombre y numero de argumentos:|1= base| |2=limite| |3=8 bits de Propiedades P- DP-010B1| |4= 4 bits de prop| |5=Entrada en la tabla|
+   934                                  		gdtdescini _TSS_kernel,  0x67,	10001001b, 	0001b, 	GDT_vector(5); 
+   935 00000886 31DB                <1>  xor ebx, ebx
+   936                              <1> 
+   937 00000888 BB[00000000]        <1>  mov ebx, %1
+   938 0000088D 66891D[2A000000]    <1>  mov [%5+gdtd_t.base00_15], bx
+   939 00000894 C1EB10              <1>  shr ebx, 16
+   940 00000897 881D[2C000000]      <1>  mov [%5+gdtd_t.base16_23], bl
+   941 0000089D 883D[2F000000]      <1>  mov [%5+gdtd_t.base24_31], bh
+   942                              <1> 
+   943 000008A3 31DB                <1>  xor ebx, ebx
+   944 000008A5 BB67000000          <1>  mov ebx, %2
+   945 000008AA 66891D[28000000]    <1>  mov [%5+gdtd_t.limite],bx
+   946 000008B1 C1EB10              <1>  shr ebx, 16
+   947 000008B4 881D[2E000000]      <1>  mov [%5+gdtd_t.lim_prop],bl
+   948                              <1> 
+   949 000008BA 30DB                <1>  xor bl, bl
+   950 000008BC B389                <1>  mov bl, %3
+   951 000008BE 881D[2D000000]      <1>  mov [%5+gdtd_t.prop],bl
+   952                              <1> 
+   953 000008C4 30DB                <1>  xor bl, bl
+   954 000008C6 B301                <1>  mov bl, %4
+   955 000008C8 C0E304              <1>  shl bl, 4
+   956 000008CB 081D[2E000000]      <1>  or [%5+gdtd_t.lim_prop],bl
+   957                              <1> 
+   958                                  		gdtdescini _TSS1, 	 0x67,	10001001b, 	0001b, 	GDT_vector(6); dpl 00 el kernel switchea
+   959 000008D1 31DB                <1>  xor ebx, ebx
+   960                              <1> 
+   961 000008D3 BB[00000000]        <1>  mov ebx, %1
+   962 000008D8 66891D[32000000]    <1>  mov [%5+gdtd_t.base00_15], bx
+   963 000008DF C1EB10              <1>  shr ebx, 16
+   964 000008E2 881D[34000000]      <1>  mov [%5+gdtd_t.base16_23], bl
+   965 000008E8 883D[37000000]      <1>  mov [%5+gdtd_t.base24_31], bh
+   966                              <1> 
+   967 000008EE 31DB                <1>  xor ebx, ebx
+   968 000008F0 BB67000000          <1>  mov ebx, %2
+   969 000008F5 66891D[30000000]    <1>  mov [%5+gdtd_t.limite],bx
+   970 000008FC C1EB10              <1>  shr ebx, 16
+   971 000008FF 881D[36000000]      <1>  mov [%5+gdtd_t.lim_prop],bl
+   972                              <1> 
+   973 00000905 30DB                <1>  xor bl, bl
+   974 00000907 B389                <1>  mov bl, %3
+   975 00000909 881D[35000000]      <1>  mov [%5+gdtd_t.prop],bl
+   976                              <1> 
+   977 0000090F 30DB                <1>  xor bl, bl
+   978 00000911 B301                <1>  mov bl, %4
+   979 00000913 C0E304              <1>  shl bl, 4
+   980 00000916 081D[36000000]      <1>  or [%5+gdtd_t.lim_prop],bl
+   981                              <1> 
+   982                                  		gdtdescini _TSS2, 	 0x67,	10001001b, 	0001b, 	GDT_vector(7); dpl 00 el kernel switchea
+   983 0000091C 31DB                <1>  xor ebx, ebx
+   984                              <1> 
+   985 0000091E BB[00000000]        <1>  mov ebx, %1
+   986 00000923 66891D[3A000000]    <1>  mov [%5+gdtd_t.base00_15], bx
+   987 0000092A C1EB10              <1>  shr ebx, 16
+   988 0000092D 881D[3C000000]      <1>  mov [%5+gdtd_t.base16_23], bl
+   989 00000933 883D[3F000000]      <1>  mov [%5+gdtd_t.base24_31], bh
+   990                              <1> 
+   991 00000939 31DB                <1>  xor ebx, ebx
+   992 0000093B BB67000000          <1>  mov ebx, %2
+   993 00000940 66891D[38000000]    <1>  mov [%5+gdtd_t.limite],bx
+   994 00000947 C1EB10              <1>  shr ebx, 16
+   995 0000094A 881D[3E000000]      <1>  mov [%5+gdtd_t.lim_prop],bl
+   996                              <1> 
+   997 00000950 30DB                <1>  xor bl, bl
+   998 00000952 B389                <1>  mov bl, %3
+   999 00000954 881D[3D000000]      <1>  mov [%5+gdtd_t.prop],bl
+  1000                              <1> 
+  1001 0000095A 30DB                <1>  xor bl, bl
+  1002 0000095C B301                <1>  mov bl, %4
+  1003 0000095E C0E304              <1>  shl bl, 4
+  1004 00000961 081D[3E000000]      <1>  or [%5+gdtd_t.lim_prop],bl
+  1005                              <1> 
+  1006                                  		gdtdescini _TSS3, 	 0x67,	10001001b, 	0001b, 	GDT_vector(8); dpl 00 el kernel switchea
+  1007 00000967 31DB                <1>  xor ebx, ebx
+  1008                              <1> 
+  1009 00000969 BB[00000000]        <1>  mov ebx, %1
+  1010 0000096E 66891D[42000000]    <1>  mov [%5+gdtd_t.base00_15], bx
+  1011 00000975 C1EB10              <1>  shr ebx, 16
+  1012 00000978 881D[44000000]      <1>  mov [%5+gdtd_t.base16_23], bl
+  1013 0000097E 883D[47000000]      <1>  mov [%5+gdtd_t.base24_31], bh
+  1014                              <1> 
+  1015 00000984 31DB                <1>  xor ebx, ebx
+  1016 00000986 BB67000000          <1>  mov ebx, %2
+  1017 0000098B 66891D[40000000]    <1>  mov [%5+gdtd_t.limite],bx
+  1018 00000992 C1EB10              <1>  shr ebx, 16
+  1019 00000995 881D[46000000]      <1>  mov [%5+gdtd_t.lim_prop],bl
+  1020                              <1> 
+  1021 0000099B 30DB                <1>  xor bl, bl
+  1022 0000099D B389                <1>  mov bl, %3
+  1023 0000099F 881D[45000000]      <1>  mov [%5+gdtd_t.prop],bl
+  1024                              <1> 
+  1025 000009A5 30DB                <1>  xor bl, bl
+  1026 000009A7 B301                <1>  mov bl, %4
+  1027 000009A9 C0E304              <1>  shl bl, 4
+  1028 000009AC 081D[46000000]      <1>  or [%5+gdtd_t.lim_prop],bl
+  1029                              <1> 
+  1030                                  
+  1031                                  
+  1032                                  		;en TR cargar el TSS de la tarea actual, kernel (main) la cargo ahora antes de activar el timer tick
+  1033 000009B2 31C0                    		xor		eax,eax
+  1034 000009B4 B8[00000000]            		mov		eax,TSS_kernel_index
+  1035 000009B9 0F00D8                  			ltr	ax
+  1036                                  		
+  1037                                  		ini_tss_table  tss_vector(0) , SEL_DATOS , SEL_CS ,PILA , main , 0x246 , PILA;eflags con interrupciones
+  1038                              <1> 
+  1039 000009BC C705[64000000]0000- <1>  mov dword[%1+tss_struct.IO] , 0xFFFF0000
+  1040 000009C4 FFFF                <1>
+  1041 000009C6 66C705[54000000]-   <1>  mov word[%1+tss_struct.DS] , %2
+  1042 000009CD [0000]              <1>
+  1043 000009CF 66C705[48000000]-   <1>  mov word[%1+tss_struct.ES] , %2
+  1044 000009D6 [0000]              <1>
+  1045 000009D8 66C705[5C000000]-   <1>  mov word[%1+tss_struct.GS] , %2
+  1046 000009DF [0000]              <1>
+  1047 000009E1 66C705[58000000]-   <1>  mov word[%1+tss_struct.FS] , %2
+  1048 000009E8 [0000]              <1>
+  1049 000009EA 66C705[4C000000]-   <1>  mov word[%1+tss_struct.CS] , %3
+  1050 000009F1 [0000]              <1>
+  1051 000009F3 C705[38000000]-     <1>  mov dword[%1+tss_struct.ESP], %4
+  1052 000009F9 [00100000]          <1>
+  1053                              <1> 
+  1054 000009FD C705[28000000]0000- <1>  mov dword[%1+tss_struct.EAX], 0
+  1055 00000A05 0000                <1>
+  1056 00000A07 C705[34000000]0000- <1>  mov dword[%1+tss_struct.EBX], 0
+  1057 00000A0F 0000                <1>
+  1058 00000A11 C705[2C000000]0000- <1>  mov dword[%1+tss_struct.ECX], 0
+  1059 00000A19 0000                <1>
+  1060 00000A1B C705[30000000]0000- <1>  mov dword[%1+tss_struct.EDX], 0
+  1061 00000A23 0000                <1>
+  1062 00000A25 C705[24000000]4602- <1>  mov dword[%1+tss_struct.EFLAGS], %6
+  1063 00000A2D 0000                <1>
+  1064                              <1> 
+  1065 00000A2F C705[44000000]0000- <1>  mov dword[%1+tss_struct.EDI], 0
+  1066 00000A37 0000                <1>
+  1067 00000A39 C705[40000000]0000- <1>  mov dword[%1+tss_struct.ESI], 0
+  1068 00000A41 0000                <1>
+  1069                              <1> 
+  1070 00000A43 C705[3C000000]-     <1>  mov dword[%1+tss_struct.EBP], %4
+  1071 00000A49 [00100000]          <1>
+  1072 00000A4D 66C705[50000000]-   <1>  mov word[%1+tss_struct.SS], %2
+  1073 00000A54 [0000]              <1>
+  1074 00000A56 C705[20000000]-     <1>  mov dword[%1+tss_struct.EIP], %5
+  1075 00000A5C [00000000]          <1>
+  1076 00000A60 50                  <1>  push eax
+  1077 00000A61 0F20D8              <1>  mov eax, cr3
+  1078 00000A64 A3[1C000000]        <1>  mov [%1+tss_struct.CR3], eax
+  1079 00000A69 58                  <1>  pop eax
+  1080 00000A6A 66C705[18000000]-   <1>  mov word[%1+tss_struct.SS2], %2
+  1081 00000A71 [0000]              <1>
+  1082 00000A73 C705[14000000]-     <1>  mov dword[%1+tss_struct.ESP2], %4
+  1083 00000A79 [00100000]          <1>
+  1084                              <1> 
+  1085 00000A7D 66C705[08000000]-   <1>  mov word[%1+tss_struct.SS0], SEL_DATOS
+  1086 00000A84 [0000]              <1>
+  1087 00000A86 C705[04000000]-     <1>  mov dword[%1+tss_struct.ESP0], %7
+  1088 00000A8C [00100000]          <1>
+  1089                              <1> 
+  1090                                  
+  1091                                  		
+  1092 00000A90 B8[00000000]            		mov eax , SEL_CS_USER
+  1093 00000A95 83C803                  		or eax , 11b;
+  1094                                  		
+  1095 00000A98 BB[00000000]            		mov ebx , SEL_DATOS_USER
+  1096 00000A9D 83CB03                  		or ebx, 11b
+  1097                                  		;1 y 2 de usuario
+  1098                                  		;TAREA 1
+  1099                                  		ini_tss_table  tss_vector(1) , bx , ax ,PILA1 , tarea1 , 0x246 , PILA1_00;eflags con interrupciones,lo lei del bochs
+  1100                              <1> 
+  1101 00000AA0 C705[CC000000]0000- <1>  mov dword[%1+tss_struct.IO] , 0xFFFF0000
+  1102 00000AA8 FFFF                <1>
+  1103 00000AAA 66891D[BC000000]    <1>  mov word[%1+tss_struct.DS] , %2
+  1104 00000AB1 66891D[B0000000]    <1>  mov word[%1+tss_struct.ES] , %2
+  1105 00000AB8 66891D[C4000000]    <1>  mov word[%1+tss_struct.GS] , %2
+  1106 00000ABF 66891D[C0000000]    <1>  mov word[%1+tss_struct.FS] , %2
+  1107 00000AC6 66A3[B4000000]      <1>  mov word[%1+tss_struct.CS] , %3
+  1108 00000ACC C705[A0000000]-     <1>  mov dword[%1+tss_struct.ESP], %4
+  1109 00000AD2 [00000000]          <1>
+  1110                              <1> 
+  1111 00000AD6 C705[90000000]0000- <1>  mov dword[%1+tss_struct.EAX], 0
+  1112 00000ADE 0000                <1>
+  1113 00000AE0 C705[9C000000]0000- <1>  mov dword[%1+tss_struct.EBX], 0
+  1114 00000AE8 0000                <1>
+  1115 00000AEA C705[94000000]0000- <1>  mov dword[%1+tss_struct.ECX], 0
+  1116 00000AF2 0000                <1>
+  1117 00000AF4 C705[98000000]0000- <1>  mov dword[%1+tss_struct.EDX], 0
+  1118 00000AFC 0000                <1>
+  1119 00000AFE C705[8C000000]4602- <1>  mov dword[%1+tss_struct.EFLAGS], %6
+  1120 00000B06 0000                <1>
+  1121                              <1> 
+  1122 00000B08 C705[AC000000]0000- <1>  mov dword[%1+tss_struct.EDI], 0
+  1123 00000B10 0000                <1>
+  1124 00000B12 C705[A8000000]0000- <1>  mov dword[%1+tss_struct.ESI], 0
+  1125 00000B1A 0000                <1>
+  1126                              <1> 
+  1127 00000B1C C705[A4000000]-     <1>  mov dword[%1+tss_struct.EBP], %4
+  1128 00000B22 [00000000]          <1>
+  1129 00000B26 66891D[B8000000]    <1>  mov word[%1+tss_struct.SS], %2
+  1130 00000B2D C705[88000000]-     <1>  mov dword[%1+tss_struct.EIP], %5
+  1131 00000B33 [00000000]          <1>
+  1132 00000B37 50                  <1>  push eax
+  1133 00000B38 0F20D8              <1>  mov eax, cr3
+  1134 00000B3B A3[84000000]        <1>  mov [%1+tss_struct.CR3], eax
+  1135 00000B40 58                  <1>  pop eax
+  1136 00000B41 66891D[80000000]    <1>  mov word[%1+tss_struct.SS2], %2
+  1137 00000B48 C705[7C000000]-     <1>  mov dword[%1+tss_struct.ESP2], %4
+  1138 00000B4E [00000000]          <1>
+  1139                              <1> 
+  1140 00000B52 66C705[70000000]-   <1>  mov word[%1+tss_struct.SS0], SEL_DATOS
+  1141 00000B59 [0000]              <1>
+  1142 00000B5B C705[6C000000]-     <1>  mov dword[%1+tss_struct.ESP0], %7
+  1143 00000B61 [00200000]          <1>
+  1144                              <1> 
+  1145                                  
+  1146                                  		;TAREA 2
+  1147                                  		ini_tss_table  tss_vector(2) , bx , ax ,PILA2 , tarea2 , 0x246 , PILA2_00
+  1148                              <1> 
+  1149 00000B65 C705[34010000]0000- <1>  mov dword[%1+tss_struct.IO] , 0xFFFF0000
+  1150 00000B6D FFFF                <1>
+  1151 00000B6F 66891D[24010000]    <1>  mov word[%1+tss_struct.DS] , %2
+  1152 00000B76 66891D[18010000]    <1>  mov word[%1+tss_struct.ES] , %2
+  1153 00000B7D 66891D[2C010000]    <1>  mov word[%1+tss_struct.GS] , %2
+  1154 00000B84 66891D[28010000]    <1>  mov word[%1+tss_struct.FS] , %2
+  1155 00000B8B 66A3[1C010000]      <1>  mov word[%1+tss_struct.CS] , %3
+  1156 00000B91 C705[08010000]-     <1>  mov dword[%1+tss_struct.ESP], %4
+  1157 00000B97 [00000000]          <1>
+  1158                              <1> 
+  1159 00000B9B C705[F8000000]0000- <1>  mov dword[%1+tss_struct.EAX], 0
+  1160 00000BA3 0000                <1>
+  1161 00000BA5 C705[04010000]0000- <1>  mov dword[%1+tss_struct.EBX], 0
+  1162 00000BAD 0000                <1>
+  1163 00000BAF C705[FC000000]0000- <1>  mov dword[%1+tss_struct.ECX], 0
+  1164 00000BB7 0000                <1>
+  1165 00000BB9 C705[00010000]0000- <1>  mov dword[%1+tss_struct.EDX], 0
+  1166 00000BC1 0000                <1>
+  1167 00000BC3 C705[F4000000]4602- <1>  mov dword[%1+tss_struct.EFLAGS], %6
+  1168 00000BCB 0000                <1>
+  1169                              <1> 
+  1170 00000BCD C705[14010000]0000- <1>  mov dword[%1+tss_struct.EDI], 0
+  1171 00000BD5 0000                <1>
+  1172 00000BD7 C705[10010000]0000- <1>  mov dword[%1+tss_struct.ESI], 0
+  1173 00000BDF 0000                <1>
+  1174                              <1> 
+  1175 00000BE1 C705[0C010000]-     <1>  mov dword[%1+tss_struct.EBP], %4
+  1176 00000BE7 [00000000]          <1>
+  1177 00000BEB 66891D[20010000]    <1>  mov word[%1+tss_struct.SS], %2
+  1178 00000BF2 C705[F0000000]-     <1>  mov dword[%1+tss_struct.EIP], %5
+  1179 00000BF8 [00000000]          <1>
+  1180 00000BFC 50                  <1>  push eax
+  1181 00000BFD 0F20D8              <1>  mov eax, cr3
+  1182 00000C00 A3[EC000000]        <1>  mov [%1+tss_struct.CR3], eax
+  1183 00000C05 58                  <1>  pop eax
+  1184 00000C06 66891D[E8000000]    <1>  mov word[%1+tss_struct.SS2], %2
+  1185 00000C0D C705[E4000000]-     <1>  mov dword[%1+tss_struct.ESP2], %4
+  1186 00000C13 [00000000]          <1>
+  1187                              <1> 
+  1188 00000C17 66C705[D8000000]-   <1>  mov word[%1+tss_struct.SS0], SEL_DATOS
+  1189 00000C1E [0000]              <1>
+  1190 00000C20 C705[D4000000]-     <1>  mov dword[%1+tss_struct.ESP0], %7
+  1191 00000C26 [00300000]          <1>
+  1192                              <1> 
+  1193                                  
+  1194                                  		;3 nivel 00
+  1195                                  		;TAREA 3
+  1196                                  		ini_tss_table  tss_vector(3) , SEL_DATOS , SEL_CS ,PILA3_00 , tarea3 , 0x246, PILA3_00
+  1197                              <1> 
+  1198 00000C2A C705[9C010000]0000- <1>  mov dword[%1+tss_struct.IO] , 0xFFFF0000
+  1199 00000C32 FFFF                <1>
+  1200 00000C34 66C705[8C010000]-   <1>  mov word[%1+tss_struct.DS] , %2
+  1201 00000C3B [0000]              <1>
+  1202 00000C3D 66C705[80010000]-   <1>  mov word[%1+tss_struct.ES] , %2
+  1203 00000C44 [0000]              <1>
+  1204 00000C46 66C705[94010000]-   <1>  mov word[%1+tss_struct.GS] , %2
+  1205 00000C4D [0000]              <1>
+  1206 00000C4F 66C705[90010000]-   <1>  mov word[%1+tss_struct.FS] , %2
+  1207 00000C56 [0000]              <1>
+  1208 00000C58 66C705[84010000]-   <1>  mov word[%1+tss_struct.CS] , %3
+  1209 00000C5F [0000]              <1>
+  1210 00000C61 C705[70010000]-     <1>  mov dword[%1+tss_struct.ESP], %4
+  1211 00000C67 [00400000]          <1>
+  1212                              <1> 
+  1213 00000C6B C705[60010000]0000- <1>  mov dword[%1+tss_struct.EAX], 0
+  1214 00000C73 0000                <1>
+  1215 00000C75 C705[6C010000]0000- <1>  mov dword[%1+tss_struct.EBX], 0
+  1216 00000C7D 0000                <1>
+  1217 00000C7F C705[64010000]0000- <1>  mov dword[%1+tss_struct.ECX], 0
+  1218 00000C87 0000                <1>
+  1219 00000C89 C705[68010000]0000- <1>  mov dword[%1+tss_struct.EDX], 0
+  1220 00000C91 0000                <1>
+  1221 00000C93 C705[5C010000]4602- <1>  mov dword[%1+tss_struct.EFLAGS], %6
+  1222 00000C9B 0000                <1>
+  1223                              <1> 
+  1224 00000C9D C705[7C010000]0000- <1>  mov dword[%1+tss_struct.EDI], 0
+  1225 00000CA5 0000                <1>
+  1226 00000CA7 C705[78010000]0000- <1>  mov dword[%1+tss_struct.ESI], 0
+  1227 00000CAF 0000                <1>
+  1228                              <1> 
+  1229 00000CB1 C705[74010000]-     <1>  mov dword[%1+tss_struct.EBP], %4
+  1230 00000CB7 [00400000]          <1>
+  1231 00000CBB 66C705[88010000]-   <1>  mov word[%1+tss_struct.SS], %2
+  1232 00000CC2 [0000]              <1>
+  1233 00000CC4 C705[58010000]-     <1>  mov dword[%1+tss_struct.EIP], %5
+  1234 00000CCA [00000000]          <1>
+  1235 00000CCE 50                  <1>  push eax
+  1236 00000CCF 0F20D8              <1>  mov eax, cr3
+  1237 00000CD2 A3[54010000]        <1>  mov [%1+tss_struct.CR3], eax
+  1238 00000CD7 58                  <1>  pop eax
+  1239 00000CD8 66C705[50010000]-   <1>  mov word[%1+tss_struct.SS2], %2
+  1240 00000CDF [0000]              <1>
+  1241 00000CE1 C705[4C010000]-     <1>  mov dword[%1+tss_struct.ESP2], %4
+  1242 00000CE7 [00400000]          <1>
+  1243                              <1> 
+  1244 00000CEB 66C705[40010000]-   <1>  mov word[%1+tss_struct.SS0], SEL_DATOS
+  1245 00000CF2 [0000]              <1>
+  1246 00000CF4 C705[3C010000]-     <1>  mov dword[%1+tss_struct.ESP0], %7
+  1247 00000CFA [00400000]          <1>
+  1248                              <1> 
+  1249                                  		
+  1250                                  		; activo la #NM para atender el switch de los registros XMM0 que usan las tareas
+  1251 00000CFE 0F20C0                  		mov eax, cr0
+  1252 00000D01 24FB                    		and al, 11111011b; cr0.em=0;
+  1253 00000D03 0F22C0                  		mov cr0, eax
+  1254 00000D06 0F20E0                  		mov eax, cr4
+  1255 00000D09 80CC02                  		or ah, 00000010b; cr4.osfxsr=1;
+  1256 00000D0C 0F22E0                  		mov cr4, eax
+  1257                                  
+  1258                                  
+  1259                                  ;___________________________________________________ENTREGO CONTROL AL main______________________________________________________________________________________
+  1260                                  
+  1261                                  control_to_main:;(KERNEL IDLE TASK)
+  1262 00000D0F 9C                      		pushf
+  1263 00000D10 B8[00000000]            		mov 		eax, SEL_CS;
+  1264 00000D15 50                      		push 		eax
+  1265                                  		
+  1266 00000D16 B8[00000000]            		mov  		eax,main
+  1267 00000D1B 50                      		push 		eax
+  1268 00000D1C B000                    		mov    		 al, 00h		;  interrupciones del PIC 1  - int timer tick 
+  1269 00000D1E E621                    		out    		 21h, al
+  1270 00000D20 CF                      		iret
+  1271                                  
+  1272                                  __SECT__
+  1273                                  
+  1274                                  
+  1275                                  ;RESERVO LUGAR PARA EL STACK
+  1276                                  [section .pilas_level_00]
+  1277                                  align 4096
+  1278                                  _INI_PILA:
+  1279 00000000 00000000<rept>          		times 1024 dd 0; 4k
+  1280                                  PILA	equ	$
+  1281                                  
+  1282                                  _INI_PILA1_00:
+  1283 00001000 00000000<rept>          		times 1024 dd 0; 4k
+  1284                                  PILA1_00	equ	$
+  1285                                  
+  1286                                  _INI_PILA2_00:
+  1287 00002000 00000000<rept>          		times 1024 dd 0; 4k
+  1288                                  PILA2_00	equ	$
+  1289                                  
+  1290                                  _INI_PILA3_00:
+  1291 00003000 00000000<rept>          		times 1024 dd 0; 4k
+  1292                                  PILA3_00	equ	$
+  1293                                  
+  1294                                  __SECT__
+  1295                                  
+  1296                                  
+  1297                                  [section .resto_del_kernel]
+  1298                                  
+  1299                                  ;***************
+  1300                                  ;void _ini_pant(void)
+  1301                                  ;32 bits
+  1302                                  ;ESTA FUNCION INICIALIZA LA PANTALLA, SIN PARAMETROS NI RETORNO: UNA VERSION MAS ELEMENTAL SIN PUSH NI POPS ES _kernel_clear_pant
+  1303                                  ;***************
+  1304                                  _init_pant:
+  1305 00000000 9C                      	pushfd
+  1306 00000001 50                      	push eax
+  1307 00000002 51                      	push ecx
+  1308 00000003 57                      	push edi
+  1309 00000004 FC                      	cld; clear direction flag
+  1310 00000005 66B82070                	mov ax, 0x7020; fondo negro letra blanca
+  1311 00000009 BF00800B00              	mov edi, MEM_VIDEO;registro de destino
+  1312 0000000E B9D0070000              	mov ecx, CANT_COLUMNAS*CANT_FILAS
+  1313 00000013 F366AB                  	rep stosw; va con ax , edi y ecx
+  1314 00000016 5F                      	pop edi
+  1315 00000017 59                      	pop ecx
+  1316 00000018 58                      	pop eax
+  1317 00000019 9D                      	popfd
+  1318 0000001A C3                      ret
+  1319                                  
+  1320                                  
+  1321                                  ;***************
+  1322                                  ;ABI32 void _zero_me(inicio, fin)
+  1323                                  ;32 bits
+  1324                                  ;***************
+  1325                                  _zero_me:
+  1326 0000001B 55                      push ebp
+  1327 0000001C 89E5                    mov ebp, esp
+  1328 0000001E 50                      push eax
+  1329 0000001F 57                      push edi
+  1330 00000020 9C                      pushfd
+  1331                                  
+  1332 00000021 FC                      cld;al derecho
+  1333                                  
+  1334 00000022 B800000000              mov eax, 0;
+  1335 00000027 8B7D08                  mov edi, [ebp+8];
+  1336                                  .loop_:
+  1337 0000002A 66AB                    stosw
+  1338 0000002C 3B7D0C                  cmp edi, [ebp+12]
+  1339 0000002F 78F9                    js .loop_
+  1340                                  
+  1341 00000031 9D                      popfd
+  1342 00000032 5F                      pop edi
+  1343 00000033 58                      pop eax
+  1344 00000034 5D                      pop ebp
+  1345 00000035 C3                      ret
+  1346                                  
+  1347                                  
+  1348                                  ;***************
+  1349                                  ;ABI32 void _page_me(lineal, fisica)
+  1350                                  ;32 bits
+  1351                                  ;se llama antes de activar paginacion
+  1352                                  ;***************
+  1353                                  
+  1354                                  _page_me:
+  1355 00000036 55                          push ebp
+  1356 00000037 89E5                        mov ebp, esp
+  1357 00000039 83EC08                      sub  esp, 8; lugar para 2 offset 
+  1358 0000003C 50                          push eax
+  1359 0000003D 57                          push edi
+  1360 0000003E 56                          push esi
+  1361 0000003F 9C                          pushfd
+  1362                                      
+  1363                                  
+  1364                                  ;obtengo los offset de los 2 niveles
+  1365 00000040 8B4508                  mov 	eax, [ebp+8];
+  1366 00000043 C1E816                  shr 	eax, 22 ; offset en el level1
+  1367 00000046 8945FC                  mov 	[ebp-4],eax;guardo el offset del segundo nivel
+  1368                                  
+  1369 00000049 8B4508                  mov 	eax, [ebp+8];
+  1370 0000004C C1E80C                  shr 	eax, 12;offset del page_table nivel
+  1371 0000004F 25FF030000              and 	eax,01111111111b
+  1372 00000054 8945F8                  mov 	[ebp-8],eax;
+  1373                                  	    
+  1374                                  
+  1375                                  ;¿esta cargado el segundo nivel?
+  1376 00000057 8B45FC                  mov 	eax, [ebp-4];el offset del segundo nivel
+  1377 0000005A 8B3C8500002000          mov 	edi,  [0200000h+4*eax]; 
+  1378 00000061 89F9                    mov 	ecx, edi
+  1379 00000063 81E700F0FFFF            and	edi, 0xfffff000
+  1380 00000069 09C9                    or 	ecx,ecx;
+  1381 0000006B 7529                    jnz 	.level_1
+  1382                                  
+  1383                                  ;no existia, entonces hay que hacer la entrada en _PAGE_DIRECTORY
+  1384 0000006D BB00202000              mov 	ebx, 0202000h ; desde aca agrego tablas de paginas
+  1385 00000072 A1[84020000]            mov 	eax, [veces_directorio]
+  1386 00000077 BA00100000              mov 	edx, 4096 ;miltiplica edx con eax y guarda en eax
+  1387 0000007C F7E2                    mul 	edx; miltiplica edx con eax y guarda en eax
+  1388 0000007E 01C3                    add 	ebx, eax; ebx=  _PAGE_TABLE_PF + veces_directorio * 4096
+  1389 00000080 89DF                    mov 	edi, ebx
+  1390 00000082 83C307                  add 	ebx, PT_P+PT_RW+PT_U
+  1391 00000085 8B45FC                  mov  	eax, [ebp-4];el offset del primer nivel
+  1392 00000088 891C8500002000          mov 	[0200000h+4*eax], ebx
+  1393 0000008F 8305[84020000]01        add 	dword[veces_directorio],1;
+  1394                                  
+  1395                                  
+  1396                                  .level_1:
+  1397                                  		
+  1398                                  		
+  1399 00000096 8B5D0C                  		mov ebx, [ebp+12];fisica
+  1400 00000099 81E300F0FFFF            		and ebx, 0xfffff000  ;alineada a 4k
+  1401 0000009F 8B45F8                  		mov eax, [ebp-8]; offset del page_table nivel
+  1402 000000A2 83C307                  		add ebx, PT_P+PT_RW+PT_U
+  1403 000000A5 891C87                  		mov [edi+4*eax], ebx
+  1404                                  
+  1405 000000A8 9D                      	popfd
+  1406 000000A9 5E                      	pop esi
+  1407 000000AA 5F                      	pop edi	
+  1408 000000AB 58                      	pop eax	
+  1409 000000AC 89EC                    	mov esp, ebp; elimino varibles locales
+  1410 000000AE 5D                      	pop ebp;
+  1411                                  
+  1412 000000AF C3                      ret
+  1413                                      
+  1414                                  
+  1415                                  
+  1416                                  
+  1417                                  
+  1418                                  ;***************
+  1419                                  ;ABI32 void _copy_me(principio, fin, destino)
+  1420                                  ;32 bits
+  1421                                  ;***************
+  1422                                  _copy_me:
+  1423 000000B0 55                          push ebp
+  1424 000000B1 89E5                        mov ebp, esp
+  1425 000000B3 50                          push eax
+  1426 000000B4 57                          push edi
+  1427 000000B5 56                          push esi
+  1428 000000B6 9C                          pushfd
+  1429                                      
+  1430 000000B7 8B7D0E                      mov edi, [ebp+14];mi destino
+  1431 000000BA 8B7508                      mov esi, [ebp+8];mi principio
+  1432 000000BD 8B450C                      mov eax, [ebp+12];mi final
+  1433                                      .loop2:
+  1434 000000C0 A4                            movsb
+  1435 000000C1 39C6                          cmp esi, eax
+  1436 000000C3 78FB                        js .loop2 
+  1437 000000C5 9D                      	popfd
+  1438 000000C6 5E                      	pop esi
+  1439 000000C7 5F                      	pop edi	
+  1440 000000C8 58                      	pop eax	
+  1441 000000C9 5D                      	pop ebp;
+  1442 000000CA C3                      ret
+  1443                                      
+  1444                                  
+  1445                                  ;***************
+  1446                                  ;ABI32 void _print(string, columna, fila, color)
+  1447                                  ;32 bits
+  1448                                  ;***************
+  1449                                  		
+  1450                                  _print:
+  1451 000000CB 55                          push ebp
+  1452 000000CC 89E5                        mov ebp, esp
+  1453                                    
+  1454 000000CE 52                          push edx
+  1455 000000CF 50                          push eax
+  1456 000000D0 51                          push ecx
+  1457 000000D1 57                          push edi
+  1458 000000D2 56                          push esi
+  1459 000000D3 9C                          pushfd
+  1460                                      
+  1461 000000D4 FC                          cld;al derecho
+  1462 000000D5 8B7508                      mov esi, [ebp+8];mi string
+  1463                                      ;armo mi destino: [ MEM_VIDEO+2*[(fila)*80+(columna)]] inicio del word a escribir
+  1464 000000D8 8B4510                      mov eax, [ebp+16];la fila
+  1465 000000DB BA50000000                  mov edx,80
+  1466 000000E0 F7E2                        mul edx; miltiplica edx con eax y guarda en eax
+  1467 000000E2 89C2                        mov edx,eax
+  1468 000000E4 03550C                      add edx,[ebp+12];el valor de la columna
+  1469 000000E7 D1E2                        shl edx,1; multiplico por 2 porque son words
+  1470 000000E9 81C200800B00                add edx, MEM_VIDEO    
+  1471 000000EF 89D7                        mov edi, edx;
+  1472                                  
+  1473                                  
+  1474                                  
+  1475 000000F1 8A6514                        mov ah,  [ebp+20]; el color en la parte alta
+  1476                                  	.loop1:
+  1477 000000F4 8A06                      		mov al, byte [esi]; cargo el caracter en la parte baja
+  1478 000000F6 668907                    		mov [edi], ax;guardo en el buffer de pantalla el caracter y su color
+  1479 000000F9 46                        		inc esi
+  1480 000000FA 83C702                  		add edi, 2; el word que sigue
+  1481 000000FD 803E0A                  		cmp byte [esi],10; si es igual a null termino
+  1482 00000100 75F2                            jne .loop1
+  1483                                  
+  1484                                      
+  1485                                      ;restauro valors
+  1486 00000102 9D                      	popfd
+  1487 00000103 5E                      	pop esi
+  1488 00000104 5F                      	pop edi
+  1489 00000105 59                      	pop ecx
+  1490 00000106 58                      	pop eax
+  1491 00000107 5A                      	pop edx
+  1492 00000108 89EC                    	mov esp, ebp; elimino locales
+  1493 0000010A 5D                      	pop ebp;
+  1494 0000010B C3                      ret
+  1495                                  __SECT__
+  1496                                  
+  1497                                  [section .text]
+  1498                                  _Configurar_PICs:
+  1499                                  
+  1500                                  ;ICW1 - PIC1
+  1501 00000D21 B011                    		  mov		al,011h          				;IRQs activas x flanco, cascada, y ICW4
+  1502 00000D23 E620                    		  out		020h,al  
+  1503                                  ;ICW2 - PIC1
+  1504 00000D25 B020                    		  mov     	al,020h           				;El PIC1 arranca en INT tipo (BH)
+  1505 00000D27 E621                    		  out     	021h,al
+  1506                                  ;ICW3 - PIC1
+  1507 00000D29 B004                    		  mov     	al,04h          				;PIC1 Master, Slave ingresa Int.x IRQ2
+  1508 00000D2B E621                    		  out     	021h,al
+  1509                                  ;ICW4 - PIC1
+  1510 00000D2D B001                    		  mov     	al,01h          				;Modo 8086
+  1511 00000D2F E621                    		  out     	021h,al
+  1512                                  
+  1513 00000D31 B0FF                    		  mov     	al,0FFh						;Deshabilito interrupciones del PIC1 antes de configurar el PIC2
+  1514 00000D33 E621                    		  out     	021h,al
+  1515                                  
+  1516                                  ;ICW1 - PIC2
+  1517 00000D35 B011                    		  mov     	al,011h          				;IRQs activas x flanco,cascada, y ICW4
+  1518 00000D37 E6A0                    		  out     	0A0h,al
+  1519                                  ;ICW2 - PIC2
+  1520 00000D39 B028                    		  mov    	al,028h           				;El PIC2 arranca en INT tipo (BL)
+  1521 00000D3B E6A1                    		  out     	0A1h,al
+  1522                                  ;ICW3 - PIC2
+  1523 00000D3D B002                    		  mov     	al,02h          				;PIC2 Slave, ingresa Int x IRQ2
+  1524 00000D3F E6A1                    		  out     	0A1h,al
+  1525                                  ;ICW4 - PIC2
+  1526 00000D41 B001                    		  mov     	al,01h          				;Modo 8086
+  1527 00000D43 E6A1                    		  out     	0A1h,al
+  1528                                  
+  1529 00000D45 B0FF                    		  mov     	al,0FFh						;Interrupciones del PIC2 Enmascaradas
+  1530 00000D47 E6A1                    		  out     	0A1h,al
+  1531                                  
+  1532 00000D49 B0FD                    		  mov     	al,0FDh						;Habilito las Interrupciones Deseadas: Teclado
+  1533 00000D4B E621                    		  out     	021h,al
+  1534                                  
+  1535 00000D4D C3                      		  ret
+  1536                                  		  
+  1537                                  __SECT__
+  1538                                  
+  1539                                  [section .data]
+  1540                                  
+  1541                                  COLOR_HANDLER equ 3 
+  1542                                  P_MODE equ 0x1 ;define para realizar la mascara con el registro CR0
+  1543                                  ESC_TECLA Equ 0x01;define de la tecla esc
+  1544                                  BUFFER_TECLADO equ 0x60
+  1545                                  
+  1546                                  ;Mensajes de endtrada a Handlers
+  1547                                  MSG1_HANDLER:
+  1548 00000000 5F5F5F5F5F5F5F5F5F-     	db '___________________Bienvenido al handler_________________________',10
+  1549 00000009 5F5F5F5F5F5F5F5F5F-
+  1550 00000012 5F4269656E76656E69-
+  1551 0000001B 646F20616C2068616E-
+  1552 00000024 646C65725F5F5F5F5F-
+  1553 0000002D 5F5F5F5F5F5F5F5F5F-
+  1554 00000036 5F5F5F5F5F5F5F5F5F-
+  1555 0000003F 5F5F0A             
+  1556                                  	
+  1557                                  MSG_HANDLER_ESC:
+  1558 00000042 5F5F5F5F5F5F5F5F5F-     	db '___________________ESCAPE PRESIONADA_____________________________',10
+  1559 0000004B 5F5F5F5F5F5F5F5F5F-
+  1560 00000054 5F4553434150452050-
+  1561 0000005D 524553494F4E414441-
+  1562 00000066 5F5F5F5F5F5F5F5F5F-
+  1563 0000006F 5F5F5F5F5F5F5F5F5F-
+  1564 00000078 5F5F5F5F5F5F5F5F5F-
+  1565 00000081 5F5F0A             
+  1566 00000084 90<rept>                align 16;
+  1567                                  MSG_HND_TABLE:
+  1568 00000090 5F5F5F5F686E643A20-            db '____hnd: 00____',10
+  1569 00000099 30305F5F5F5F0A     
+  1570 000000A0 5F5F5F5F686E643A20-            db '____hnd: 01____',10
+  1571 000000A9 30315F5F5F5F0A     
+  1572 000000B0 5F5F5F5F686E643A20-            db '____hnd: 02____',10
+  1573 000000B9 30325F5F5F5F0A     
+  1574 000000C0 5F5F5F5F686E643A20-            db '____hnd: 03____',10
+  1575 000000C9 30335F5F5F5F0A     
+  1576 000000D0 5F5F5F5F686E643A20-            db '____hnd: 04____',10
+  1577 000000D9 30345F5F5F5F0A     
+  1578 000000E0 5F5F5F5F686E643A20-            db '____hnd: 05____',10
+  1579 000000E9 30355F5F5F5F0A     
+  1580 000000F0 5F5F5F5F686E643A20-            db '____hnd: 06____',10
+  1581 000000F9 30365F5F5F5F0A     
+  1582 00000100 5F5F5F5F686E643A20-            db '____hnd: 07____',10
+  1583 00000109 30375F5F5F5F0A     
+  1584 00000110 5F5F5F5F686E643A20-            db '____hnd: 08____',10
+  1585 00000119 30385F5F5F5F0A     
+  1586 00000120 5F5F5F5F686E643A20-            db '____hnd: 09____',10
+  1587 00000129 30395F5F5F5F0A     
+  1588 00000130 5F5F5F5F686E643A20-            db '____hnd: 10____',10
+  1589 00000139 31305F5F5F5F0A     
+  1590 00000140 5F5F5F5F686E643A20-            db '____hnd: 11____',10
+  1591 00000149 31315F5F5F5F0A     
+  1592 00000150 5F5F5F5F686E643A20-            db '____hnd: 12____',10
+  1593 00000159 31325F5F5F5F0A     
+  1594 00000160 5F5F5F5F686E643A20-            db '____hnd: 13____',10
+  1595 00000169 31335F5F5F5F0A     
+  1596 00000170 5F5F5F5F686E643A20-            db '____hnd: 14____',10
+  1597 00000179 31345F5F5F5F0A     
+  1598                                  
+  1599                                  MSG_INT_TABLE:
+  1600 00000180 5F5F5F5F6972713A20-            db '____irq: 00____',10
+  1601 00000189 30305F5F5F5F0A     
+  1602 00000190 5F5F5F5F6972713A20-            db '____irq: 01____',10
+  1603 00000199 30315F5F5F5F0A     
+  1604 000001A0 5F5F5F5F6972713A20-            db '____irq: 02____',10
+  1605 000001A9 30325F5F5F5F0A     
+  1606 000001B0 5F5F5F5F6972713A20-            db '____irq: 03____',10
+  1607 000001B9 30335F5F5F5F0A     
+  1608 000001C0 5F5F5F5F6972713A20-            db '____irq: 04____',10
+  1609 000001C9 30345F5F5F5F0A     
+  1610 000001D0 5F5F5F5F6972713A20-            db '____irq: 05____',10
+  1611 000001D9 30355F5F5F5F0A     
+  1612 000001E0 5F5F5F5F6972713A20-            db '____irq: 06____',10
+  1613 000001E9 30365F5F5F5F0A     
+  1614 000001F0 5F5F5F5F6972713A20-            db '____irq: 07____',10
+  1615 000001F9 30375F5F5F5F0A     
+  1616 00000200 5F5F5F5F6972713A20-            db '____irq: 08____',10
+  1617 00000209 30385F5F5F5F0A     
+  1618 00000210 5F5F5F5F6972713A20-            db '____irq: 09____',10
+  1619 00000219 30395F5F5F5F0A     
+  1620 00000220 5F5F5F5F6972713A20-            db '____irq: 10____',10
+  1621 00000229 31305F5F5F5F0A     
+  1622 00000230 5F5F5F5F6972713A20-            db '____irq: 11____',10
+  1623 00000239 31315F5F5F5F0A     
+  1624 00000240 5F5F5F5F6972713A20-            db '____irq: 12____',10
+  1625 00000249 31325F5F5F5F0A     
+  1626 00000250 5F5F5F5F6972713A20-            db '____irq: 13____',10
+  1627 00000259 31335F5F5F5F0A     
+  1628 00000260 5F5F5F5F6972713A20-            db '____irq: 14____',10
+  1629 00000269 31345F5F5F5F0A     
+  1630 00000270 5F5F5F5F6972713A20-            db '____irq: 15____',10
+  1631 00000279 31355F5F5F5F0A     
+  1632                                  __SECT__
+  1633                                  
+  1634                                  
+  1635                                  [section .resto_del_kernel]
+  1636                                  
+  1637                                  ;____________________________________________________________________________________________________________________________________________________________________________
+  1638                                  _handler0:
+  1639 0000010C E848070000              call _clear_pant
+  1640                                  
+  1641 00000111 BF00800B00              mov edi, MEM_VIDEO
+  1642 00000116 BE[00000000]            mov esi, MSG1_HANDLER
+  1643 0000011B B403                    mov ah,  COLOR_HANDLER; 
+  1644                                  
+  1645 0000011D E8E0060000              call _kernel_print
+  1646                                  
+  1647 00000122 BE[90000000]            mov esi, MSG_HND_TABLE
+  1648                                  
+  1649 00000127 E8D6060000              call _kernel_print
+  1650                                  
+  1651 0000012C F4                      hlt
+  1652                                  
+  1653 0000012D CF                      iret
+  1654                                  ;____________________________________________________________________________________________________________________________________________________________________________
+  1655                                  _handler1:
+  1656                                  
+  1657 0000012E E826070000              call _clear_pant
+  1658                                  
+  1659 00000133 BF00800B00              mov edi, MEM_VIDEO
+  1660 00000138 BE[00000000]            mov esi, MSG1_HANDLER
+  1661 0000013D B403                    mov ah,  COLOR_HANDLER; 
+  1662 0000013F E8BE060000              call _kernel_print
+  1663                                  
+  1664 00000144 BE[A0000000]            mov esi, MSG_HND_TABLE+16
+  1665 00000149 E8B4060000              call _kernel_print
+  1666 0000014E F4                      hlt
+  1667 0000014F CF                      iret
+  1668                                  
+  1669                                  
+  1670                                  
+  1671                                  ;____________________________________________________________________________________________________________________________________________________________________________
+  1672                                  _handler2:
+  1673 00000150 E804070000              call _clear_pant
+  1674                                  
+  1675 00000155 BF00800B00              mov edi, MEM_VIDEO
+  1676 0000015A BE[00000000]            mov esi, MSG1_HANDLER
+  1677 0000015F B403                    mov ah,  COLOR_HANDLER; 
+  1678 00000161 E89C060000              call _kernel_print
+  1679                                  
+  1680 00000166 BE[B0000000]            mov esi, MSG_HND_TABLE+32
+  1681 0000016B E892060000              call _kernel_print
+  1682 00000170 F4                      hlt
+  1683 00000171 CF                      iret
+  1684                                  ;____________________________________________________________________________________________________________________________________________________________________________
+  1685                                  _handler3:
+  1686 00000172 E8E2060000              call _clear_pant
+  1687                                  
+  1688 00000177 BF00800B00              mov edi, MEM_VIDEO
+  1689 0000017C BE[00000000]            mov esi, MSG1_HANDLER
+  1690 00000181 B403                    mov ah,  COLOR_HANDLER; 
+  1691 00000183 E87A060000              call _kernel_print
+  1692                                  
+  1693 00000188 BE[C0000000]            mov esi, MSG_HND_TABLE+48
+  1694 0000018D E870060000              call _kernel_print
+  1695 00000192 F4                      hlt
+  1696 00000193 CF                      iret
+  1697                                  ;____________________________________________________________________________________________________________________________________________________________________________
+  1698                                  _handler4:
+  1699 00000194 E8C0060000              call _clear_pant
+  1700                                  
+  1701 00000199 BF00800B00              mov edi, MEM_VIDEO
+  1702 0000019E BE[00000000]            mov esi, MSG1_HANDLER
+  1703 000001A3 B403                    mov ah,  COLOR_HANDLER; 
+  1704 000001A5 E858060000              call _kernel_print
+  1705                                  
+  1706 000001AA BE[D0000000]            mov esi, MSG_HND_TABLE+64
+  1707 000001AF E84E060000              call _kernel_print
+  1708 000001B4 F4                      hlt
+  1709 000001B5 CF                      iret
+  1710                                  ;____________________________________________________________________________________________________________________________________________________________________________
+  1711                                  _handler5:
+  1712 000001B6 E89E060000              call _clear_pant
+  1713                                  
+  1714 000001BB BF00800B00              mov edi, MEM_VIDEO
+  1715 000001C0 BE[00000000]            mov esi, MSG1_HANDLER
+  1716 000001C5 B403                    mov ah,  COLOR_HANDLER; 
+  1717 000001C7 E836060000              call _kernel_print
+  1718                                  
+  1719 000001CC BE[E0000000]            mov esi, MSG_HND_TABLE+80
+  1720 000001D1 E82C060000              call _kernel_print
+  1721 000001D6 F4                      hlt
+  1722 000001D7 CF                      iret
+  1723                                  ;____________________________________________________________________________________________________________________________________________________________________________
+  1724                                  _handler6:
+  1725 000001D8 E87C060000              call _clear_pant
+  1726                                  
+  1727 000001DD BF00800B00              mov edi, MEM_VIDEO
+  1728 000001E2 BE[00000000]            mov esi, MSG1_HANDLER
+  1729 000001E7 B403                    mov ah,  COLOR_HANDLER; 
+  1730 000001E9 E814060000              call _kernel_print
+  1731                                  
+  1732 000001EE BE[F0000000]            mov esi, MSG_HND_TABLE+96
+  1733 000001F3 E80A060000              call _kernel_print
+  1734 000001F8 F4                      hlt
+  1735 000001F9 CF                      iret
+  1736                                  ;____________________________________________________________________________________________________________________________________________________________________________
+  1737                                  _handler7:
+  1738                                  ;Hace uso de esta interrupcion, es decir que la tarea que uso ultima los MMX  los resguardo, si otra fuera a usar 
+  1739                                  ;estos registros entonces se haria el save and load correspondiente:
+  1740 000001FA FA                      cli
+  1741 000001FB 50                      push eax
+  1742 000001FC 56                      push esi
+  1743 000001FD 0F06                        CLTS ; limpio el bit de task switch
+  1744                                  
+  1745 000001FF 803D[88020000]01            cmp byte[estado_tareas], 1
+  1746 00000206 7510                        jnz .go_on2
+  1747                                  
+  1748 00000208 0F2805[00000000]            movaps xmm0, [_TSS1_XMM0]   
+  1749 0000020F 0F280D[00000000]            movaps xmm1, [_TSS1_XMM1]   
+  1750 00000216 EB27                        jmp .salida
+  1751                                      
+  1752                                      
+  1753                                      .go_on2:
+  1754 00000218 803D[88020000]02            cmp byte[estado_tareas], 2
+  1755 0000021F 7510                        jnz .go_on3
+  1756                                    
+  1757 00000221 0F2805[00000000]            movaps xmm0, [_TSS2_XMM0]   
+  1758 00000228 0F280D[00000000]            movaps xmm1, [_TSS2_XMM1] 
+  1759 0000022F EB0E                        jmp .salida
+  1760                                      
+  1761                                      
+  1762                                      .go_on3:
+  1763                                  
+  1764                                    
+  1765 00000231 0F2805[00000000]            movaps xmm0, [_TSS3_XMM0]   
+  1766 00000238 0F280D[00000000]            movaps xmm1, [_TSS3_XMM1] 
+  1767                                  
+  1768                                     .salida:
+  1769                                  
+  1770                                  
+  1771 0000023F 5E                      pop esi
+  1772 00000240 58                      pop eax
+  1773 00000241 FB                      sti
+  1774 00000242 CF                      iret
+  1775                                  ;____________________________________________________________________________________________________________________________________________________________________________
+  1776                                  _handler8:
+  1777 00000243 E811060000              call _clear_pant
+  1778                                  
+  1779 00000248 BF00800B00              mov edi, MEM_VIDEO
+  1780 0000024D BE[00000000]            mov esi, MSG1_HANDLER
+  1781 00000252 B403                    mov ah,  COLOR_HANDLER; 
+  1782 00000254 E8A9050000              call _kernel_print
+  1783                                  
+  1784 00000259 BE[10010000]            mov esi, MSG_HND_TABLE+128
+  1785 0000025E E89F050000              call _kernel_print
+  1786 00000263 F4                      hlt
+  1787 00000264 CF                      iret
+  1788                                  ;____________________________________________________________________________________________________________________________________________________________________________
+  1789                                  _handler9:
+  1790 00000265 E8EF050000              call _clear_pant
+  1791                                  
+  1792 0000026A BF00800B00              mov edi, MEM_VIDEO
+  1793 0000026F BE[00000000]            mov esi, MSG1_HANDLER
+  1794 00000274 B403                    mov ah,  COLOR_HANDLER; 
+  1795 00000276 E887050000              call _kernel_print
+  1796                                  
+  1797 0000027B BE[20010000]            mov esi, MSG_HND_TABLE+144
+  1798 00000280 E87D050000              call _kernel_print
+  1799 00000285 F4                      hlt
+  1800 00000286 CF                      iret
+  1801                                  ;____________________________________________________________________________________________________________________________________________________________________________
+  1802                                  _handler10:
+  1803 00000287 E8CD050000              call _clear_pant
+  1804                                  
+  1805 0000028C BF00800B00              mov edi, MEM_VIDEO
+  1806 00000291 BE[00000000]            mov esi, MSG1_HANDLER
+  1807 00000296 B403                    mov ah,  COLOR_HANDLER; 
+  1808 00000298 E865050000              call _kernel_print
+  1809                                  
+  1810 0000029D BE[30010000]            mov esi, MSG_HND_TABLE+160
+  1811 000002A2 E85B050000              call _kernel_print
+  1812 000002A7 F4                      hlt
+  1813 000002A8 CF                      iret
+  1814                                  ;____________________________________________________________________________________________________________________________________________________________________________
+  1815                                  _handler11:
+  1816 000002A9 E8AB050000              call _clear_pant
+  1817                                  
+  1818 000002AE BF00800B00              mov edi, MEM_VIDEO
+  1819 000002B3 BE[00000000]            mov esi, MSG1_HANDLER
+  1820 000002B8 B403                    mov ah,  COLOR_HANDLER; 
+  1821 000002BA E843050000              call _kernel_print
+  1822                                  
+  1823 000002BF BE[40010000]            mov esi, MSG_HND_TABLE+176
+  1824 000002C4 E839050000              call _kernel_print
+  1825 000002C9 F4                      hlt
+  1826 000002CA CF                      iret
+  1827                                  ;____________________________________________________________________________________________________________________________________________________________________________
+  1828                                  _handler12:
+  1829 000002CB E889050000              call _clear_pant
+  1830                                  
+  1831 000002D0 BF00800B00              mov edi, MEM_VIDEO
+  1832 000002D5 BE[00000000]            mov esi, MSG1_HANDLER
+  1833 000002DA B403                    mov ah,  COLOR_HANDLER; 
+  1834 000002DC E821050000              call _kernel_print
+  1835                                  
+  1836 000002E1 BE[50010000]            mov esi, MSG_HND_TABLE+192
+  1837 000002E6 E817050000              call _kernel_print
+  1838                                  
+  1839 000002EB F4                      hlt
+  1840 000002EC CF                      iret
+  1841                                  ;____________________________________________________________________________________________________________________________________________________________________________
+  1842                                  _handler13:
+  1843                                  
+  1844 000002ED E867050000              call _clear_pant
+  1845                                  
+  1846 000002F2 BF00800B00              mov edi, MEM_VIDEO
+  1847 000002F7 BE[00000000]            mov esi, MSG1_HANDLER
+  1848 000002FC B403                    mov ah,  COLOR_HANDLER; 
+  1849 000002FE E8FF040000              call _kernel_print
+  1850                                  
+  1851 00000303 BE[60010000]            mov esi, MSG_HND_TABLE+208
+  1852 00000308 E8F5040000              call _kernel_print
+  1853                                  
+  1854 0000030D F4                      hlt
+  1855 0000030E CF                      iret
+  1856                                  ;___________________________________________________________________________________________________________________________________________________________________________
+  1857                                  _handler14:
+  1858                                  
+  1859 0000030F FA                      cli 
+  1860 00000310 55                      push 	ebp
+  1861 00000311 89E5                    mov  	ebp, esp
+  1862 00000313 83EC08                  sub  	esp, 8; lugar para 2 offset 
+  1863                                  ;resguardo otros registros
+  1864 00000316 53                      push 	ebx
+  1865 00000317 50                      push 	eax
+  1866 00000318 57                      push 	edi
+  1867 00000319 56                      push 	esi
+  1868 0000031A 51                      push 	ecx
+  1869                                  
+  1870 0000031B E8F1040000              call 	_fila;
+  1871 00000320 89C7                    mov 	edi, eax
+  1872 00000322 BE[00000000]            mov 	esi, MSG1_HANDLER
+  1873 00000327 B403                    mov 	ah,  COLOR_HANDLER; 
+  1874                                  
+  1875 00000329 E8D4040000              call 	_kernel_print;
+  1876 0000032E BE[70010000]            mov 	esi, MSG_HND_TABLE+224
+  1877 00000333 E8CA040000              call 	_kernel_print;sigue donde quedo la impresion en pantalla anterior
+  1878                                  
+  1879 00000338 0F20D3                  mov	ebx, cr2;leo la direccion virtual requerida por el usuario por si cae otro page fault
+  1880 0000033B 8B4504                  mov	eax, [ebp+4];leo el code error
+  1881                                  
+  1882 0000033E 83E001                  and	eax, 1;leo el bit de precencia del codigo
+  1883 00000341 7576                    jnz	.no_presente; salta si el error no se tratase de pagina no presente
+  1884                                  
+  1885                                  
+  1886                                  ;obtengo los offset de los 2 niveles
+  1887 00000343 89D8                    mov 	eax, ebx;
+  1888 00000345 C1E816                  shr 	eax, 22 ; offset en el level2
+  1889 00000348 8945FC                  mov 	[ebp-4],eax;guardo el offset del segundo nivel
+  1890                                  
+  1891 0000034B 89D8                    mov 	eax, ebx;
+  1892 0000034D C1E80C                  shr 	eax, 12;offset del page_table nivel
+  1893 00000350 25FF030000              and 	eax,1111111111b
+  1894 00000355 8945F8                  mov 	[ebp-8],eax;
+  1895                                  
+  1896                                  
+  1897                                  ;¿esta cargado el segundo nivel?
+  1898 00000358 8B45FC                  mov 	eax, [ebp-4];el offset del segundo nivel
+  1899 0000035B 8B3C8500002000          mov 	edi,  [0200000h+4*eax]; se puede leer desde CR3 para hacerlo mas general
+  1900 00000362 89F9                    mov 	ecx, edi
+  1901 00000364 83EF07                  sub	edi, PT_P+PT_RW+PT_U
+  1902 00000367 09C9                    or 	ecx,ecx;
+  1903 00000369 7529                    jnz 	.level_1
+  1904                                  
+  1905                                  ;no existia, entonces hay que hacer la entrada en _PAGE_DIRECTORY
+  1906 0000036B BB00202000              mov 	ebx, 0202000h ; desde aca agrego tablas de paginas
+  1907 00000370 A1[84020000]            mov 	eax, [veces_directorio]
+  1908 00000375 BA00100000              mov 	edx, 4096 ;miltiplica edx con eax y guarda en eax
+  1909 0000037A F7E2                    mul 	edx; miltiplica edx con eax y guarda en eax
+  1910 0000037C 01C3                    add 	ebx, eax; ebx=  _PAGE_TABLE_PF + veces_directorio * 4096
+  1911 0000037E 89DF                    mov 	edi, ebx
+  1912 00000380 83C307                  add 	ebx, PT_P+PT_RW+PT_U
+  1913 00000383 8B45FC                  mov  	eax, [ebp-4];el offset del segundo nivel
+  1914 00000386 891C8500002000          mov 	[0200000h+4*eax], ebx
+  1915 0000038D 8305[84020000]01        add 	dword[veces_directorio],1;
+  1916                                  
+  1917                                  
+  1918                                  .level_1:
+  1919                                  		
+  1920                                  		
+  1921 00000394 BB00004000              		mov ebx, 0400000h ; del TP asignar fisicas desde aca
+  1922 00000399 A1[80020000]            		mov eax, [veces]
+  1923 0000039E BA00100000              		mov edx, 4096 ;miltiplica edx con eax y guarda en eax
+  1924 000003A3 F7E2                    		mul edx; miltiplica edx con eax y guarda en eax
+  1925 000003A5 01C3                    		add ebx, eax; ebx=  00400000h + veces * 4096
+  1926                                  	
+  1927 000003A7 8B45F8                  		mov eax, [ebp-8]; offset del page_table nivel
+  1928                                  	
+  1929 000003AA 83C307                  		add ebx, PT_P+PT_RW+PT_U
+  1930 000003AD 891C87                  		mov [edi+4*eax], ebx
+  1931                                  	
+  1932 000003B0 8305[80020000]01        		add dword[veces],1;
+  1933 000003B7 EB13                    jmp .go_on	
+  1934                                  
+  1935                                  
+  1936                                  .no_presente:
+  1937 000003B9 E853040000              call 	_fila;
+  1938 000003BE 89C7                    mov 	edi, eax
+  1939 000003C0 BE[0C000000]            mov 	esi, PRESENT_S
+  1940 000003C5 B403                    mov 	ah,  COLOR_HANDLER; 
+  1941 000003C7 E836040000              call 	_kernel_print;
+  1942                                  
+  1943                                  
+  1944                                  
+  1945                                  .go_on:
+  1946                                  
+  1947 000003CC 59                      pop 	ecx
+  1948 000003CD 5E                      pop	esi
+  1949 000003CE 5F                      pop 	edi
+  1950 000003CF 58                      pop 	eax
+  1951 000003D0 5B                      pop 	ebx
+  1952 000003D1 89EC                    mov 	esp, ebp; elimino varibles locales
+  1953 000003D3 5D                      pop 	ebp;
+  1954 000003D4 83C404                  add 	esp,4;quito el code error
+  1955 000003D7 FB                      sti
+  1956 000003D8 CF                      iret
+  1957                                  
+  1958                                  __SECT__
+  1959                                  
+  1960                                  [section .data_readonly]
+  1961                                  	
+  1962                                  PRESENT_S:
+  1963 0000000C 203A4572726F722043-     	db ' :Error Code de pagina presente',10
+  1964 00000015 6F6465206465207061-
+  1965 0000001E 67696E612070726573-
+  1966 00000027 656E74650A         
+  1967                                  __SECT__
+  1968                                  
+  1969                                  
+  1970                                  [section .data]
+  1971                                  veces:
+  1972 00000280 00000000                    dd 0;
+  1973                                  veces_directorio:
+  1974 00000284 00000000                    dd 0;
+  1975                                  __SECT__
+  1976                                  
+  1977                                  
+  1978                                  [section .resto_del_kernel]
+  1979                                  ;____________________________________________________________________________________________________________________________________________________________________________
+  1980                                  
+  1981                                  _handler22:
+  1982                                  
+  1983 000003D9 BF00800B00              mov edi, MEM_VIDEO
+  1984 000003DE BE[00000000]            mov esi, MSG1_HANDLER
+  1985 000003E3 B403                    mov ah,  COLOR_HANDLER; 
+  1986 000003E5 E818040000              call _kernel_print
+  1987                                  
+  1988 000003EA BE[80010000]            mov esi, MSG_INT_TABLE
+  1989 000003EF E80E040000              call _kernel_print
+  1990                                  
+  1991 000003F4 F4                      hlt
+  1992 000003F5 CF                      iret
+  1993                                  
+  1994                                  ;____________________________________________________________________________________________________________________________________________________________________________
+  1995                                  _handler32:
+  1996 000003F6 FA                          cli
+  1997                                  
+  1998 000003F7 9C                          pushfd
+  1999 000003F8 50                          push eax
+  2000                                  
+  2001 000003F9 A0[88020000]                mov al,byte[estado_tareas]
+  2002                                  
+  2003 000003FE 8005[88020000]01            add byte[estado_tareas],1;
+  2004 00000405 803D[88020000]04            cmp byte[estado_tareas],4
+  2005 0000040C 752A                        jnz .go_on
+  2006 0000040E C605[88020000]00            mov byte[estado_tareas],0
+  2007                                      
+  2008 00000415 0F20C0                      mov eax, cr0
+  2009 00000418 83E008                      and eax, 1000b
+  2010                                       ; si es 0 limpio el bit TS entonces uso los XMM 
+  2011 0000041B 750E                        jnz .go1
+  2012                                  
+  2013 0000041D 0F290D[00000000]            movaps [_TSS3_XMM1], xmm1   
+  2014 00000424 0F2905[00000000]            movaps [_TSS3_XMM0], xmm0   
+  2015                                      
+  2016                                      .go1:
+  2017                                      
+  2018 0000042B B020                        mov al, 20h
+  2019 0000042D E620                        out 20h, al
+  2020 0000042F EA00000000[0000]            jmp TSS_kernel_index:0 ; la proxima vez que regrese esta tarea entrara por acá + 1
+  2021 00000436 EB63                        jmp .salida
+  2022                                      
+  2023                                      
+  2024                                      .go_on:
+  2025 00000438 803D[88020000]01            cmp byte[estado_tareas], 1
+  2026 0000043F 750D                        jnz .go_on2
+  2027                                      ;kernel IDLE fue la anterior no usa XMM
+  2028                                  
+  2029 00000441 B020                        mov al, 20h
+  2030 00000443 E620                        out 20h, al
+  2031 00000445 EA00000000[0000]            jmp TSS1:0 ; la proxima vez que regrese esta tarea entrara por acá + 1
+  2032 0000044C EB4D                        jmp .salida
+  2033                                      
+  2034                                      
+  2035                                      .go_on2:
+  2036 0000044E 803D[88020000]02            cmp byte[estado_tareas], 2
+  2037 00000455 7523                        jnz .go_on3
+  2038                                      
+  2039 00000457 0F20C0                      mov eax, cr0
+  2040 0000045A 83E008                      and eax, 1000b
+  2041                                      ; si es 0 limpio el bit TS entonces uso los XMM 
+  2042 0000045D 750E                        jnz .go2
+  2043                                  
+  2044 0000045F 0F290D[00000000]            movaps [_TSS1_XMM1], xmm1   
+  2045 00000466 0F2905[00000000]            movaps [_TSS1_XMM0], xmm0 
+  2046                                      
+  2047                                      .go2:
+  2048                                      
+  2049 0000046D B020                        mov al, 20h
+  2050 0000046F E620                        out 20h, al
+  2051 00000471 EA00000000[0000]            jmp TSS2:0 ; la proxima vez que regrese esta tarea entrara por acá + 1
+  2052 00000478 EB21                        jmp .salida
+  2053                                      
+  2054                                      
+  2055                                      .go_on3:
+  2056                                      
+  2057 0000047A 0F20C0                       mov eax, cr0
+  2058 0000047D 83E008                      and eax, 1000b
+  2059                                      ; si es 0 limpio el bit TS entonces uso los XMM 
+  2060 00000480 750E                        jnz .go3
+  2061 00000482 0F290D[00000000]            movaps [_TSS2_XMM1], xmm1   
+  2062 00000489 0F2905[00000000]            movaps [_TSS2_XMM0], xmm0  
+  2063                                      
+  2064                                      .go3:
+  2065                                      
+  2066 00000490 B020                        mov al, 20h
+  2067 00000492 E620                        out 20h, al
+  2068 00000494 EA00000000[0000]            jmp TSS3:0 ; la proxima vez que regrese esta tarea entrara por acá + 1
+  2069                                  
+  2070                                     .salida:
+  2071 0000049B 58                          pop eax
+  2072 0000049C 9D                          popfd
+  2073                                  
+  2074 0000049D FB                          sti
+  2075 0000049E CF                          iret
+  2076                                  __SECT__
+  2077                                      
+  2078                                  [section .data]
+  2079                                  estado_tareas:
+  2080 00000288 00                      db 0;
+  2081                                  __SECT__
+  2082                                  
+  2083                                  ;____________________________________________________________________________________________________________________________________________________________________________
+  2084                                  [section .resto_del_kernel]
+  2085                                  
+  2086                                  
+  2087                                  _handler33:
+  2088 0000049F FA                      cli
+  2089 000004A0 50                      push eax
+  2090 000004A1 53                      push ebx
+  2091 000004A2 56                      push esi
+  2092 000004A3 57                      push edi
+  2093 000004A4 E460                    in al,BUFFER_TECLADO; Leo el Buffer en la parte baja de al
+  2094                                  
+  2095                                  
+  2096                                  
+  2097 000004A6 803D[89020000]00        cmp byte [STATE], STAND_BY
+  2098 000004AD 7554                    jnz .next
+  2099                                  ;______________________________Tecla presionada cuando estaba en stand-by. Analizo las de interes y cambio de estado
+  2100 000004AF 3C19                    cmp al,0x19;P make code	;|
+  2101 000004B1 750C                    jnz .stand1			;|
+  2102 000004B3 C605[89020000]02        mov byte [STATE],P_PRESS	;|
+  2103 000004BA E93D010000              jmp .go_on			;|
+  2104                                  				;|
+  2105                                  .stand1:			;|
+  2106 000004BF 3C22                    cmp al,0x22;G make code	;|
+  2107 000004C1 750C                    jnz .stand2			;|
+  2108 000004C3 C605[89020000]05        mov byte [STATE],G_PRESS	;|
+  2109 000004CA E92D010000              jmp .go_on			;|
+  2110                                  				;|
+  2111                                  				;|
+  2112                                  .stand2:			;|
+  2113 000004CF 3C20                    cmp al,0x20;D make code	;|
+  2114 000004D1 750C                    jnz .stand3			;|
+  2115 000004D3 C605[89020000]01        mov byte [STATE],D_PRESS	;|
+  2116 000004DA E91D010000              jmp .go_on			;|
+  2117                                  				;|
+  2118                                  .stand3:			;|
+  2119 000004DF 3C16                    cmp al,0x16;U make code	;|
+  2120 000004E1 750C                    jnz .stand4			;|
+  2121 000004E3 C605[89020000]04        mov byte [STATE],U_PRESS	;|
+  2122 000004EA E90D010000              jmp .go_on			;|
+  2123                                  				;|
+  2124                                  .stand4:			;|
+  2125 000004EF 3C12                    cmp al,0x12;E make code	;|
+  2126 000004F1 0F85EF000000            jnz .next4_esc			;|
+  2127 000004F7 C605[89020000]03        mov byte [STATE],E_PRESS	;|
+  2128 000004FE E9F9000000              jmp .go_on			;|
+  2129                                  ;_______________________________;|
+  2130                                  
+  2131                                  
+  2132                                  .next:
+  2133 00000503 803D[89020000]02        cmp byte [STATE], P_PRESS
+  2134 0000050A 7519                    jnz .next0
+  2135                                  				;|
+  2136 0000050C 3C99                    cmp al,0x99;  relase		;|
+  2137 0000050E 0F85E8000000            jnz .go_on			;|
+  2138 00000514 C605[89020000]00        mov byte [STATE],STAND_BY	;|
+  2139 0000051B A19111D6C7              mov eax,[0xc7d61191]	;|
+  2140 00000520 E9D7000000              jmp .go_on			;|
+  2141                                  ;__________________________________
+  2142                                  .next0:
+  2143 00000525 803D[89020000]01        cmp byte [STATE], D_PRESS
+  2144 0000052C 754D                    jnz .next1
+  2145                                  
+  2146 0000052E 3CA0                    cmp al,0xA0;  relase
+  2147 00000530 0F85C6000000            jnz .go_on
+  2148 00000536 C605[89020000]00        mov byte [STATE],STAND_BY	;|			;|
+  2149                                  idt_ini _handler14, SEL_DATOS, 1000111100000000b, IDT_vector(14)  ;invalido el selector de segmento de la interrupcion de #PG
+  2150 0000053D 31DB                <1>  xor ebx, ebx
+  2151                              <1> 
+  2152 0000053F BB[0F030000]        <1>  mov ebx, %1
+  2153 00000544 66891D[70000000]    <1>  mov [%4+idt_t.offset0_15], bx
+  2154 0000054B C1EB10              <1>  shr ebx, 16
+  2155 0000054E 66891D[76000000]    <1>  mov [%4+idt_t.offset16_31], bx
+  2156                              <1> 
+  2157 00000555 31DB                <1>  xor ebx, ebx
+  2158 00000557 BB[00000000]        <1>  mov ebx, %2
+  2159 0000055C 66891D[72000000]    <1>  mov [%4+idt_t.sel_seg],bx
+  2160                              <1> 
+  2161 00000563 31DB                <1>  xor ebx, ebx
+  2162 00000565 BB008F0000          <1>  mov ebx, %3
+  2163 0000056A 66891D[74000000]    <1>  mov [%4+idt_t.prop], bx
+  2164                                  ;atajala!!			;|
+  2165 00000571 A10E668F53              mov eax,[0x538f660e]	;|	Leo una posicion que aun no esta paginada				;|
+  2166 00000576 E981000000              jmp .go_on		
+  2167                                  ;______________________________________
+  2168                                  
+  2169                                  
+  2170                                  .next1:
+  2171 0000057B 803D[89020000]05        cmp byte [STATE], G_PRESS
+  2172 00000582 751C                    jnz .next2
+  2173 00000584 3CA2                    cmp al,0xA2;  relase
+  2174 00000586 7574                    jnz .go_on
+  2175 00000588 C605[89020000]00        mov byte [STATE],STAND_BY	;|
+  2176 0000058F 0F20C0                  mov 	eax,CR0 		;|
+  2177 00000592 BB01000000              mov	ebx,P_MODE		;|
+  2178 00000597 F7D3                    not	ebx			;|
+  2179 00000599 21D8                    and  	eax,ebx			;|
+  2180 0000059B 0F22C0                  mov 	CR0,eax			;|		
+  2181 0000059E EB5C                    jmp .go_on			;|
+  2182                                  ;__________________
+  2183                                  
+  2184                                  
+  2185                                  
+  2186                                  .next2:
+  2187 000005A0 803D[89020000]04        cmp byte [STATE], U_PRESS
+  2188 000005A7 751B                    jnz .next3
+  2189 000005A9 3C96                    cmp al,0x96;  relase
+  2190 000005AB 754F                    jnz .go_on
+  2191 000005AD C605[89020000]00        mov byte [STATE],STAND_BY	;|
+  2192 000005B4 9C                      pushf
+  2193 000005B5 B8[00000000]            mov 		eax, SEL_CS;
+  2194 000005BA 50                      push 		eax
+  2195 000005BB B800000000              mov  		eax, 0x00 ; invalido EIP
+  2196 000005C0 50                      push 		eax
+  2197 000005C1 CF                      iret
+  2198 000005C2 EB38                    jmp .go_on			;|
+  2199                                  ;__________________
+  2200                                  
+  2201                                  .next3:
+  2202 000005C4 803D[89020000]03        cmp byte [STATE], E_PRESS
+  2203 000005CB 7519                    jnz .next4_esc
+  2204 000005CD 3C92                    cmp al,0x92;  relase
+  2205 000005CF 752B                    jnz .go_on
+  2206 000005D1 C605[89020000]00        mov byte [STATE],STAND_BY	;|
+  2207 000005D8 B801000000              mov eax, 1
+  2208 000005DD B900000000              mov ecx, 0
+  2209 000005E2 F7F1                    div ecx                        		
+  2210 000005E4 EB16                    jmp .go_on			;|
+  2211                                  ;__________________
+  2212                                  
+  2213                                  
+  2214                                  
+  2215                                  				
+  2216                                  .next4_esc:
+  2217 000005E6 3C01                    cmp al,ESC_TECLA;Lo comparo con la tecla esc
+  2218 000005E8 7512                    jne .go_on ;Si no es cero no se presiono esc entonces sigo leyendo el buffer
+  2219 000005EA BF00800B00              mov edi, MEM_VIDEO
+  2220 000005EF BE[42000000]            mov esi, MSG_HANDLER_ESC
+  2221 000005F4 B403                    mov ah,  COLOR_HANDLER; 
+  2222 000005F6 E807020000              call _kernel_print
+  2223 000005FB F4                      hlt
+  2224                                  
+  2225                                  
+  2226                                  
+  2227                                  .go_on:
+  2228 000005FC B020                    mov al,20h
+  2229 000005FE E620                    out 20h,al
+  2230                                  
+  2231 00000600 5F                      pop edi
+  2232 00000601 5E                      pop esi
+  2233 00000602 5B                      pop ebx
+  2234 00000603 58                      pop eax
+  2235 00000604 FB                      sti
+  2236 00000605 CF                      iret
+  2237                                  __SECT__
+  2238                                  
+  2239                                  [section .data_readonly]
+  2240                                  ;Equs de la maquina de estados del teclado
+  2241                                  STAND_BY 	EQU 0
+  2242                                  D_PRESS		EQU 1
+  2243                                  P_PRESS 	EQU 2
+  2244                                  E_PRESS 	EQU 3
+  2245                                  U_PRESS 	EQU 4	
+  2246                                  G_PRESS 	EQU 5
+  2247                                  __SECT__
+  2248                                  
+  2249                                  
+  2250                                  [section .data]
+  2251                                  STATE:
+  2252 00000289 00                      db	0
+  2253                                  __SECT__
+  2254                                  
+  2255                                  
+  2256                                  [section .resto_del_kernel]
+  2257                                  
+  2258                                  ;____________________________________________________________________________________________________________________________________________________________________________
+  2259                                  
+  2260                                  _handler34:
+  2261 00000606 E84E020000              call _clear_pant
+  2262                                  
+  2263 0000060B BF00800B00              mov edi, MEM_VIDEO
+  2264 00000610 BE[00000000]            mov esi, MSG1_HANDLER
+  2265 00000615 B403                    mov ah,  COLOR_HANDLER; 
+  2266 00000617 E8E6010000              call _kernel_print
+  2267                                  
+  2268 0000061C BE[A0010000]            mov esi, MSG_INT_TABLE+32
+  2269 00000621 E8DC010000              call _kernel_print
+  2270                                  
+  2271 00000626 F4                      hlt
+  2272 00000627 CF                      iret
+  2273                                  ;____________________________________________________________________________________________________________________________________________________________________________
+  2274                                  
+  2275                                  _handler35:
+  2276 00000628 E82C020000              call _clear_pant
+  2277                                  
+  2278 0000062D BF00800B00              mov edi, MEM_VIDEO
+  2279 00000632 BE[00000000]            mov esi, MSG1_HANDLER
+  2280 00000637 B403                    mov ah,  COLOR_HANDLER; 
+  2281 00000639 E8C4010000              call _kernel_print
+  2282                                  
+  2283 0000063E BE[B0010000]            mov esi, MSG_INT_TABLE+48
+  2284 00000643 E8BA010000              call _kernel_print
+  2285                                  
+  2286 00000648 F4                      hlt
+  2287 00000649 CF                      iret
+  2288                                  ;____________________________________________________________________________________________________________________________________________________________________________
+  2289                                  
+  2290                                  _handler36:
+  2291 0000064A E80A020000              call _clear_pant
+  2292                                  
+  2293 0000064F BF00800B00              mov edi, MEM_VIDEO
+  2294 00000654 BE[00000000]            mov esi, MSG1_HANDLER
+  2295 00000659 B403                    mov ah,  COLOR_HANDLER; 
+  2296 0000065B E8A2010000              call _kernel_print
+  2297                                  
+  2298 00000660 BE[C0010000]            mov esi, MSG_INT_TABLE+64
+  2299 00000665 E898010000              call _kernel_print
+  2300                                  
+  2301 0000066A F4                      hlt
+  2302 0000066B CF                      iret
+  2303                                  ;____________________________________________________________________________________________________________________________________________________________________________
+  2304                                  
+  2305                                  _handler37:
+  2306 0000066C E8E8010000              call _clear_pant
+  2307                                  
+  2308 00000671 BF00800B00              mov edi, MEM_VIDEO
+  2309 00000676 BE[00000000]            mov esi, MSG1_HANDLER
+  2310 0000067B B403                    mov ah,  COLOR_HANDLER; 
+  2311 0000067D E880010000              call _kernel_print
+  2312                                  
+  2313 00000682 BE[D0010000]            mov esi, MSG_INT_TABLE+80
+  2314 00000687 E876010000              call _kernel_print
+  2315                                  
+  2316 0000068C F4                      hlt
+  2317 0000068D CF                      iret
+  2318                                  ;____________________________________________________________________________________________________________________________________________________________________________
+  2319                                  
+  2320                                  _handler38:
+  2321 0000068E E8C6010000              call _clear_pant
+  2322                                  
+  2323 00000693 BF00800B00              mov edi, MEM_VIDEO
+  2324 00000698 BE[00000000]            mov esi, MSG1_HANDLER
+  2325 0000069D B403                    mov ah,  COLOR_HANDLER; 
+  2326 0000069F E85E010000              call _kernel_print
+  2327                                  
+  2328 000006A4 BE[E0010000]            mov esi, MSG_INT_TABLE+96
+  2329 000006A9 E854010000              call _kernel_print
+  2330                                  
+  2331 000006AE F4                      hlt
+  2332 000006AF CF                      iret
+  2333                                  ;____________________________________________________________________________________________________________________________________________________________________________
+  2334                                  
+  2335                                  _handler39:
+  2336 000006B0 E8A4010000              call _clear_pant
+  2337                                  
+  2338 000006B5 BF00800B00              mov edi, MEM_VIDEO
+  2339 000006BA BE[00000000]            mov esi, MSG1_HANDLER
+  2340 000006BF B403                    mov ah,  COLOR_HANDLER; 
+  2341 000006C1 E83C010000              call _kernel_print
+  2342                                  
+  2343 000006C6 BE[F0010000]            mov esi, MSG_INT_TABLE+112
+  2344 000006CB E832010000              call _kernel_print
+  2345                                  
+  2346 000006D0 F4                      hlt
+  2347 000006D1 CF                      iret
+  2348                                  ;____________________________________________________________________________________________________________________________________________________________________________
+  2349                                  
+  2350                                  _handler40:
+  2351 000006D2 E882010000              call _clear_pant
+  2352                                  
+  2353 000006D7 BF00800B00              mov edi, MEM_VIDEO
+  2354 000006DC BE[00000000]            mov esi, MSG1_HANDLER
+  2355 000006E1 B403                    mov ah,  COLOR_HANDLER; 
+  2356 000006E3 E81A010000              call _kernel_print
+  2357                                  
+  2358 000006E8 BE[00020000]            mov esi, MSG_INT_TABLE+128
+  2359 000006ED E810010000              call _kernel_print
+  2360                                  
+  2361 000006F2 F4                      hlt
+  2362 000006F3 CF                      iret
+  2363                                  ;___________________________________________________________________________________________________________________________________________________________________________
+  2364                                  
+  2365                                  _handler41:
+  2366 000006F4 E860010000              call _clear_pant
+  2367                                  
+  2368 000006F9 BF00800B00              mov edi, MEM_VIDEO
+  2369 000006FE BE[00000000]            mov esi, MSG1_HANDLER
+  2370 00000703 B403                    mov ah,  COLOR_HANDLER; 
+  2371 00000705 E8F8000000              call _kernel_print
+  2372                                  
+  2373 0000070A BE[10020000]            mov esi, MSG_INT_TABLE+144
+  2374 0000070F E8EE000000              call _kernel_print
+  2375                                  
+  2376 00000714 F4                      hlt
+  2377 00000715 CF                      iret
+  2378                                  ;____________________________________________________________________________________________________________________________________________________________________________
+  2379                                  
+  2380                                  _handler42:
+  2381 00000716 E83E010000              call _clear_pant
+  2382                                  
+  2383 0000071B BF00800B00              mov edi, MEM_VIDEO
+  2384 00000720 BE[00000000]            mov esi, MSG1_HANDLER
+  2385 00000725 B403                    mov ah,  COLOR_HANDLER; 
+  2386 00000727 E8D6000000              call _kernel_print
+  2387                                  
+  2388 0000072C BE[20020000]            mov esi, MSG_INT_TABLE+160
+  2389 00000731 E8CC000000              call _kernel_print
+  2390                                  
+  2391 00000736 F4                      hlt
+  2392 00000737 CF                      iret
+  2393                                  ;____________________________________________________________________________________________________________________________________________________________________________
+  2394                                  
+  2395                                  _handler43:
+  2396 00000738 E81C010000              call _clear_pant
+  2397                                  
+  2398 0000073D BF00800B00              mov edi, MEM_VIDEO
+  2399 00000742 BE[00000000]            mov esi, MSG1_HANDLER
+  2400 00000747 B403                    mov ah,  COLOR_HANDLER; 
+  2401 00000749 E8B4000000              call _kernel_print
+  2402                                  
+  2403 0000074E BE[30020000]            mov esi, MSG_INT_TABLE+176
+  2404 00000753 E8AA000000              call _kernel_print
+  2405                                  
+  2406 00000758 F4                      hlt
+  2407 00000759 CF                      iret
+  2408                                  ;____________________________________________________________________________________________________________________________________________________________________________
+  2409                                  
+  2410                                  _handler44:
+  2411 0000075A E8FA000000              call _clear_pant
+  2412                                  
+  2413 0000075F BF00800B00              mov edi, MEM_VIDEO
+  2414 00000764 BE[00000000]            mov esi, MSG1_HANDLER
+  2415 00000769 B403                    mov ah,  COLOR_HANDLER; 
+  2416 0000076B E892000000              call _kernel_print
+  2417                                  
+  2418 00000770 BE[40020000]            mov esi, MSG_INT_TABLE+192
+  2419 00000775 E888000000              call _kernel_print
+  2420                                  
+  2421 0000077A F4                      hlt
+  2422 0000077B CF                      iret
+  2423                                  ;____________________________________________________________________________________________________________________________________________________________________________
+  2424                                  
+  2425                                  _handler45:
+  2426 0000077C E8D8000000              call _clear_pant
+  2427                                  
+  2428 00000781 BF00800B00              mov edi, MEM_VIDEO
+  2429 00000786 BE[00000000]            mov esi, MSG1_HANDLER
+  2430 0000078B B403                    mov ah,  COLOR_HANDLER; 
+  2431 0000078D E870000000              call _kernel_print
+  2432                                  
+  2433 00000792 BE[50020000]            mov esi, MSG_INT_TABLE+208
+  2434 00000797 E866000000              call _kernel_print
+  2435                                  
+  2436 0000079C F4                      hlt
+  2437 0000079D CF                      iret
+  2438                                  ;____________________________________________________________________________________________________________________________________________________________________________
+  2439                                  
+  2440                                  _handler46:
+  2441 0000079E E8B6000000              call _clear_pant
+  2442                                  
+  2443 000007A3 BF00800B00              mov edi, MEM_VIDEO
+  2444 000007A8 BE[00000000]            mov esi, MSG1_HANDLER
+  2445 000007AD B403                    mov ah,  COLOR_HANDLER; 
+  2446 000007AF E84E000000              call _kernel_print
+  2447                                  
+  2448 000007B4 BE[60020000]            mov esi, MSG_INT_TABLE+224
+  2449 000007B9 E844000000              call _kernel_print
+  2450                                  
+  2451 000007BE F4                      hlt
+  2452 000007BF CF                      iret
+  2453                                  ;____________________________________________________________________________________________________________________________________________________________________________
+  2454                                  
+  2455                                  _handler47:
+  2456 000007C0 E894000000              call _clear_pant
+  2457                                  
+  2458 000007C5 BF00800B00              mov edi, MEM_VIDEO
+  2459 000007CA BE[00000000]            mov esi, MSG1_HANDLER
+  2460 000007CF B403                    mov ah,  COLOR_HANDLER; 
+  2461 000007D1 E82C000000              call _kernel_print
+  2462                                  
+  2463 000007D6 BE[70020000]            mov esi, MSG_INT_TABLE+240
+  2464 000007DB E822000000              call _kernel_print
+  2465                                  
+  2466 000007E0 F4                      hlt
+  2467 000007E1 CF                      iret
+  2468                                  
+  2469                                  ;____________________________________________________________________________________________________________________________________________________________________________
+  2470                                  ;en eax envia el servicio que desea
+  2471                                  ;en ebx el parametro del servicio
+  2472                                  
+  2473                                  _int80h:
+  2474 000007E2 9C                      pushfd
+  2475 000007E3 50                      push eax
+  2476 000007E4 57                      push edi
+  2477 000007E5 56                      push esi
+  2478                                  
+  2479 000007E6 83F800                  cmp eax, 0 ; servicio de impresion en pantalla con eax igual a 0
+  2480 000007E9 7512                    jne .salida
+  2481 000007EB E821000000              call 	_fila; me devuelve en eax la fila ultima que imprimio
+  2482 000007F0 89C7                    mov 	edi, eax
+  2483 000007F2 89DE                    mov 	esi, ebx  ;parametro en ebx puntero al mensaje
+  2484 000007F4 B403                    mov 	ah,  COLOR_HANDLER; 
+  2485 000007F6 E807000000              call 	_kernel_print;
+  2486 000007FB EB00                    jmp .salida
+  2487                                  
+  2488                                  ;otros servicios acá
+  2489                                  
+  2490                                  
+  2491                                  .salida:
+  2492 000007FD 5E                      pop esi
+  2493 000007FE 5F                      pop edi
+  2494 000007FF 58                      pop eax
+  2495 00000800 9D                      popfd
+  2496 00000801 CF                      iret
+  2497                                  
+  2498                                  
+  2499                                  ;________________________________funciones del kernel auxiliares____________________________________________________________________________________________________________________________________________
+  2500                                  _kernel_print:
+  2501                                    .loop:
+  2502 00000802 8A06                        mov al, byte [esi]; cargo el caracter en la parte baja
+  2503 00000804 668907                      mov [edi],ax;guardo en el buffer de pantalla el caracter y su color
+  2504 00000807 46                          inc esi
+  2505 00000808 83C702                      add edi, 2; el word que sigue
+  2506 0000080B 803E0A                      cmp byte [esi],10; si es igual a null termino
+  2507 0000080E 75F2                      jne .loop
+  2508 00000810 C3                      ret
+  2509                                  
+  2510                                  
+  2511                                  
+  2512                                  
+  2513                                  
+  2514                                  _fila:
+  2515 00000811 9C                      pushfd
+  2516 00000812 53                      push ebx
+  2517 00000813 803D[8A020000]19        cmp byte [LINE_INDEX],25
+  2518 0000081A 751D                    jne .next
+  2519 0000081C C605[8A020000]00          mov byte [LINE_INDEX],0
+  2520                                    
+  2521 00000823 57                        push edi
+  2522 00000824 51                        push ecx
+  2523                                    
+  2524 00000825 FC                        cld; clear direction flag
+  2525 00000826 66B82070                  mov ax, 0x7020; fondo negro letra blanca
+  2526 0000082A BF00800B00                mov edi, MEM_VIDEO;registro de destino
+  2527 0000082F B9D0070000                mov ecx, CANT_COLUMNAS*CANT_FILAS
+  2528 00000834 F366AB                    rep stosw; va con ax , edi y ecx
+  2529                                    
+  2530 00000837 59                        pop ecx
+  2531 00000838 5F                        pop edi
+  2532                                    
+  2533                                  .next:
+  2534 00000839 31C0                    xor eax,eax
+  2535 0000083B 31DB                    xor ebx,ebx
+  2536 0000083D 8A1D[8A020000]          mov bl, byte [LINE_INDEX]; retorno el numero de renglon
+  2537 00000843 8005[8A020000]01        add byte [LINE_INDEX],1;
+  2538 0000084A B8A0000000              mov eax,CANT_FILAS*2;
+  2539 0000084F F7E3                    mul ebx
+  2540 00000851 0500800B00              add eax,MEM_VIDEO;retorno el offset en bytes dentro del buffer de video
+  2541 00000856 5B                      pop ebx
+  2542 00000857 9D                      popfd
+  2543 00000858 C3                      ret
+  2544                                  __SECT__
+  2545                                  
+  2546                                  [section .data]
+  2547                                  LINE_INDEX:
+  2548 0000028A 0A000000                    dd 10;	:indice para el proximo renglon libre en la pantalla
+  2549                                  __SECT__
+  2550                                  
+  2551                                  [section .resto_del_kernel]
+  2552                                  _clear_pant:
+  2553 00000859 9C                      	pushfd
+  2554 0000085A 57                      	push edi
+  2555 0000085B 51                      	push ecx
+  2556 0000085C 50                      	push eax
+  2557                                  	
+  2558 0000085D FC                      	cld; clear direction flag
+  2559 0000085E 66B82070                	mov ax, 0x7020; fondo negro letra blanca
+  2560 00000862 BF00800B00              	mov edi, MEM_VIDEO;registro de destino
+  2561 00000867 B9D0070000              	mov ecx, CANT_COLUMNAS*CANT_FILAS
+  2562 0000086C F366AB                  	rep stosw; va con ax , edi y ecx
+  2563 0000086F C605[8A020000]00        	mov byte[LINE_INDEX],0; actualizo el flag de linea
+  2564                                  	
+  2565 00000876 58                      	pop eax
+  2566 00000877 59                      	pop ecx
+  2567 00000878 5F                      	pop edi
+  2568 00000879 9D                      	popfd
+  2569 0000087A C3                      ret
+  2570                                  __SECT__
+  2571                                  
+  2572                                  [section .text]
+  2573                                  BITS 16
+  2574                                  
+  2575                                  A20_Enable:
+  2576 00000D4E B8FFFF                  	mov		ax, 0FFFFh		
+  2577 00000D51 8EC0                    	mov		es, ax
+  2578 00000D53 26813E0E7E55AA          	cmp		word [es:7E0Eh], 0AA55h	; Chequeo si 107E0Eh coincide con 7E0Eh
+  2579 00000D5A 740D                    	je		GateA20_Disabled		; Si coincide entonces A20 esta deshabilitada
+  2580 00000D5C D106FE7D                	rol		word [7DFEh], 1h		; Modifico word en 7E0Eh
+  2581 00000D60 26813E0E7EAA55          	cmp		word [es:7E0Eh], 55AAh	; Cambio tambien 107E0Eh?
+  2582 00000D67 750C                    	jne		GateA20_Enabled			; Si no cambio entonces A20 esta habilitada
+  2583                                  GateA20_Disabled:
+  2584 00000D69 B0DF                    	mov		al, 0DFh				; Comando de habilitacion de A20
+  2585 00000D6B E80E00                  	call	_Gate_A20				; Habilitar Gate A20
+  2586 00000D6E 3C00                    	cmp		al, 0					; OK?
+  2587 00000D70 7403                    	je		GateA20_Enabled			; Si es OK continuo
+  2588                                  Fail:
+  2589 00000D72 F4                      	hlt								; De lo contrario detengo el procesador
+  2590 00000D73 EBFD                    	jmp		Fail
+  2591                                  GateA20_Enabled:
+  2592 00000D75 C706FE7D55AA            	mov		word [7DFEh], 0AA55h	; Restituyo la firma del bootloader
+  2593                                  
+  2594 00000D7B C3                      	ret
+  2595                                  
+  2596                                  _Gate_A20:
+  2597 00000D7C FA                      	cli							; Deshabilito interrupciones mientras usa el 8042
+  2598                                  
+  2599 00000D7D E81300                  	call  	_8042_empty?		; Ve si el buffer del 8042 está vacío
+  2600 00000D80 7510                    	jnz     gate_a20_exit		; No lo está => retorna con AL=2
+  2601                                  
+  2602 00000D82 B0D1                    	mov     al, 0D1h			; Comando Write port del 8042
+  2603 00000D84 E664                    	out     064h, al	; ...se envia al port 64h
+  2604                                  
+  2605 00000D86 E80A00                  	call    _8042_empty?		; Espera se acepte el comando
+  2606 00000D89 7507                    	jnz     gate_a20_exit		; Si no se acepta, retorna con AL=2
+  2607                                  
+  2608 00000D8B 88E0                    	mov     al, ah				; Pone en AL el dato a escribir
+  2609 00000D8D E660                    	out    	060h, al		; Lo envia al 8042
+  2610 00000D8F E80100                  	call   	_8042_empty?		; Espera se acepte el comando
+  2611                                  
+  2612                                  gate_a20_exit:
+  2613 00000D92 C3                      	ret
+  2614                                  	
+  2615                                  _8042_empty?:
+  2616 00000D93 51                      	push   	cx               	; Salva CX
+  2617 00000D94 29C9                    	sub    	cx, cx           	; CX = 0 : valor de time out
+  2618                                  empty_8042_01:  
+  2619 00000D96 E464                    	in      al, 064h  ; Lee port de estado del 8042
+  2620 00000D98 2402                    	and     al, 00000010b    	; si el bit 1 esta seteado o...
+  2621 00000D9A E0FA                    	loopnz  empty_8042_01    	; no alcanzó time out, espera.
+  2622 00000D9C 59                      	pop    	cx               	; recupera cx
+  2623 00000D9D C3                      	ret                      	; retorna con AL=0, si se limpió bit 1, o AL=2 si no.
+  2624                                  	
+  2625                                  __SECT__
